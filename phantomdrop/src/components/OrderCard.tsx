@@ -4,8 +4,8 @@ import { Order } from "@/types";
 import EscrowStatus from "./EscrowStatus";
 import DisputeForm from "./DisputeForm";
 import { useState } from "react";
-import { DISPUTE_WINDOW_MS, TOKEN_SYMBOL } from "@/lib/constants";
-import { formatTokenAmount } from "@/lib/tokenFormat";
+import { DISPUTE_WINDOW_MS } from "@/lib/constants";
+import { computeOrderBreakdown } from "@/lib/pricing";
 
 interface Props {
   order: Order;
@@ -24,8 +24,10 @@ const STATUS_COLORS: Record<string, string> = {
 export default function OrderCard({ order, onDisputeSubmitted }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
-  const fee = formatTokenAmount(order.amount, 6);
   const date = new Date(order.createdAt).toLocaleDateString();
+  const pricing = order.totalUsdc
+    ? { totalDisplay: order.totalUsdc, pharmacyCostDisplay: order.pharmacyCostUsdc!, courierFeeDisplay: order.courierFeeUsdc!, courierPercent: 20 }
+    : computeOrderBreakdown();
 
   const canDispute =
     (order.status === "delivered" || order.status === "paid") &&
@@ -56,7 +58,7 @@ export default function OrderCard({ order, onDisputeSubmitted }: Props) {
           </div>
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">{order.medicationType}</p>
           <p className="text-xs text-zinc-400">
-            {date} · {fee} {TOKEN_SYMBOL} escrowed
+            {date} · ${pricing.totalDisplay} USDC escrowed
           </p>
         </div>
         <span className="text-zinc-400 text-xs uppercase tracking-widest">{expanded ? "▲" : "▼"}</span>
@@ -68,6 +70,18 @@ export default function OrderCard({ order, onDisputeSubmitted }: Props) {
           <EscrowStatus status={order.status} />
 
           <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-xs text-zinc-400 uppercase tracking-widest">Pharmacy (cost of goods)</span>
+              <span className="text-xs text-zinc-700">${pricing.pharmacyCostDisplay} USDC</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-xs text-zinc-400 uppercase tracking-widest">Delivery fee ({pricing.courierPercent}%)</span>
+              <span className="text-xs text-zinc-700">${pricing.courierFeeDisplay} USDC</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-xs text-zinc-400 uppercase tracking-widest">Total escrowed</span>
+              <span className="text-xs font-bold text-zinc-900">${pricing.totalDisplay} USDC</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-xs text-zinc-400 uppercase tracking-widest">Drop location</span>
               <span className="text-xs text-zinc-700">{order.dropLocation}</span>

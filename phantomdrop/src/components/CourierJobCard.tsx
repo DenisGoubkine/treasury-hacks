@@ -3,7 +3,7 @@
 import { Order } from "@/types";
 import { updateOrderStatus } from "@/lib/store";
 import { COURIER_PAYOUT_SYMBOL } from "@/lib/constants";
-import { formatPayoutAmount, quoteCourierPayoutUsdc } from "@/lib/courierSwap";
+import { computeOrderBreakdown } from "@/lib/pricing";
 
 interface Props {
   order: Order;
@@ -12,8 +12,7 @@ interface Props {
 }
 
 export default function CourierJobCard({ order, courierWallet, onAccepted }: Props) {
-  const payoutQuote = quoteCourierPayoutUsdc(order.amount);
-  const payoutDisplay = formatPayoutAmount(payoutQuote.outputAmountBaseUnits, 2);
+  const courierFee = order.courierFeeUsdc || computeOrderBreakdown().courierFeeDisplay;
 
   function handleAccept() {
     if (!courierWallet) return;
@@ -22,8 +21,7 @@ export default function CourierJobCard({ order, courierWallet, onAccepted }: Pro
       courierWallet,
       acceptedAt: Date.now(),
       payoutTokenSymbol: COURIER_PAYOUT_SYMBOL,
-      payoutAmount: payoutQuote.outputAmountBaseUnits,
-      payoutSwapRate: payoutQuote.rate,
+      payoutAmount: courierFee,
     });
     onAccepted();
   }
@@ -38,7 +36,7 @@ export default function CourierJobCard({ order, courierWallet, onAccepted }: Pro
         </div>
         <div className="text-right">
           <p className="text-xs font-bold text-[#00E100]">
-            {payoutDisplay} {COURIER_PAYOUT_SYMBOL}
+            {courierFee} {COURIER_PAYOUT_SYMBOL}
           </p>
           <p className="text-xs text-zinc-400 uppercase tracking-wide">est. payout on delivery</p>
         </div>

@@ -45,6 +45,10 @@ export const REGISTRY_SIGNAL_AMOUNT = BigInt(
     "1"
 );
 
+// Demo pricing (USDC display values)
+export const ORDER_TOTAL_USDC = "50.00";
+export const COURIER_COMMISSION_PERCENT = 20;
+
 export const MEDICATION_CATEGORIES = [
   "Prescription Refill",
   "Mental Health",

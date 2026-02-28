@@ -21,6 +21,7 @@ import {
   PatientApprovedMedicationsResponse,
 } from "@/lib/compliance/types";
 import { formatTokenAmount } from "@/lib/tokenFormat";
+import { computeOrderBreakdown } from "@/lib/pricing";
 import { generateOrderId, saveOrder } from "@/lib/store";
 import { hashWalletIdentity } from "@/lib/identity";
 import { Order } from "@/types";
@@ -113,6 +114,7 @@ export default function OrderForm({ patientWallet }: Props) {
   const [error, setError] = useState("");
 
   const feeDisplay = useMemo(() => formatTokenAmount(DELIVERY_FEE, 6), []);
+  const breakdown = useMemo(() => computeOrderBreakdown(), []);
   const finalitySeconds = (MONAD_FINALITY_MS / 1000).toFixed(1);
 
   const selectedApproval = useMemo(
@@ -299,6 +301,9 @@ export default function OrderForm({ patientWallet }: Props) {
         complianceDoctorToken: selectedApproval.doctorToken,
         complianceSignature: selectedApproval.signature,
         complianceExpiresAt: selectedApproval.validUntilIso,
+        totalUsdc: breakdown.totalDisplay,
+        pharmacyCostUsdc: breakdown.pharmacyCostDisplay,
+        courierFeeUsdc: breakdown.courierFeeDisplay,
       };
 
       saveOrder(order);
@@ -325,7 +330,7 @@ export default function OrderForm({ patientWallet }: Props) {
     ? "Preparing escrow..."
     : isSending
     ? "Securing funds..."
-    : `Place order — ${feeDisplay} ${TOKEN_SYMBOL}`;
+    : `Place order — $${breakdown.totalDisplay} USDC`;
 
   return (
     <form onSubmit={placeEscrowOrder} className="space-y-6">
@@ -392,9 +397,22 @@ export default function OrderForm({ patientWallet }: Props) {
         />
       </div>
 
-      <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 flex items-center justify-between">
-        <span className="text-xs uppercase tracking-widest text-zinc-500">Escrow payment</span>
-        <span className="text-xs font-bold text-zinc-900">{feeDisplay} {TOKEN_SYMBOL}</span>
+      <div className="border border-zinc-100 bg-zinc-50 p-5 space-y-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Escrow breakdown</p>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-xs text-zinc-500 uppercase tracking-widest">Pharmacy (cost of goods)</span>
+            <span className="text-xs text-zinc-700">${breakdown.pharmacyCostDisplay} USDC</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-zinc-500 uppercase tracking-widest">Delivery fee ({breakdown.courierPercent}%)</span>
+            <span className="text-xs text-zinc-700">${breakdown.courierFeeDisplay} USDC</span>
+          </div>
+          <div className="border-t border-zinc-200 pt-2 flex justify-between">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-900">Total escrowed</span>
+            <span className="text-xs font-bold text-zinc-900">${breakdown.totalDisplay} USDC</span>
+          </div>
+        </div>
       </div>
 
       {error ? (

@@ -16,7 +16,7 @@ import {
   MONAD_TESTNET_EXPLORER_URL,
   MONAD_TESTNET_RPC_URL,
 } from "@/lib/constants";
-import { formatPayoutAmount, quoteCourierPayoutUsdc } from "@/lib/courierSwap";
+import { computeOrderBreakdown } from "@/lib/pricing";
 import { Order } from "@/types";
 
 type Eip1193Provider = {
@@ -292,11 +292,8 @@ export default function CourierPage() {
                           </p>
                           <p className="text-xs text-zinc-400">
                             Payout:{" "}
-                            {formatPayoutAmount(
-                              order.payoutAmount || quoteCourierPayoutUsdc(order.amount).outputAmountBaseUnits,
-                              2
-                            )}{" "}
-                            {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                            {order.courierFeeUsdc || computeOrderBreakdown().courierFeeDisplay}{" "}
+                            {COURIER_PAYOUT_SYMBOL}
                           </p>
                         </div>
                         <span
