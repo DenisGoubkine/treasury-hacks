@@ -16,6 +16,7 @@ import {
   TOKEN_IS_NATIVE,
   TOKEN_SYMBOL,
 } from "@/lib/constants";
+import AlchemyPayRamp from "./AlchemyPayRamp";
 import {
   PatientApprovedMedication,
   PatientApprovedMedicationsResponse,
@@ -90,6 +91,7 @@ async function waitForTxReceipt(provider: Eip1193Provider, txHash: string): Prom
 }
 
 type EscrowStep = "wallet" | "depositing" | "sending" | "creating" | null;
+type PaymentMethod = "crypto" | "fiat" | null;
 
 interface Props {
   patientWallet: string;
@@ -107,6 +109,8 @@ export default function OrderForm({ patientWallet }: Props) {
   const [selectedApprovalCode, setSelectedApprovalCode] = useState("");
   const [approvals, setApprovals] = useState<PatientApprovedMedication[]>([]);
 
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const [fiatFunded, setFiatFunded] = useState(false);
   const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [escrowStep, setEscrowStep] = useState<EscrowStep>(null);
@@ -221,9 +225,9 @@ export default function OrderForm({ patientWallet }: Props) {
       }
 
       // Step 1: Deposit to Unlink pool only if private balance is insufficient.
-      // If patient already has balance, skip deposit entirely — no MetaMask popup,
-      // the send step uses ZK proofs only (fully private, nothing visible on-chain).
-      if (balance < fee) {
+      // Skip deposit when: (a) balance already sufficient, or (b) fiat on-ramp funded the wallet.
+      // In both cases, the send step uses ZK proofs only (fully private, nothing visible on-chain).
+      if (!fiatFunded && balance < fee) {
         setEscrowStep("depositing");
 
         const provider = getEthereumProvider();
@@ -399,13 +403,66 @@ export default function OrderForm({ patientWallet }: Props) {
         <span className="text-xs font-bold text-zinc-900">{feeDisplay} {TOKEN_SYMBOL}</span>
       </div>
 
+      {/* Payment method selector */}
+      <div className="border border-zinc-100 space-y-4 p-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Payment method</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => { setPaymentMethod("crypto"); setFiatFunded(false); }}
+            className={`flex items-center gap-3 border px-4 py-3.5 transition-colors text-left ${
+              paymentMethod === "crypto"
+                ? "border-[#00E100] bg-green-50"
+                : "border-zinc-200 hover:border-zinc-900"
+            }`}
+          >
+            <span className="text-lg">🦊</span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">MetaMask</p>
+              <p className="text-xs text-zinc-400">Pay with crypto</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPaymentMethod("fiat"); setFiatFunded(false); }}
+            className={`flex items-center gap-3 border px-4 py-3.5 transition-colors text-left ${
+              paymentMethod === "fiat"
+                ? "border-[#00E100] bg-green-50"
+                : "border-zinc-200 hover:border-zinc-900"
+            }`}
+          >
+            <span className="text-lg">💳</span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Card / Venmo</p>
+              <p className="text-xs text-zinc-400">Fiat on-ramp</p>
+            </div>
+          </button>
+        </div>
+
+        {paymentMethod === "fiat" && !fiatFunded && (
+          <AlchemyPayRamp
+            walletAddress={patientWallet}
+            amount={DELIVERY_FEE}
+            onComplete={() => setFiatFunded(true)}
+            onCancel={() => setPaymentMethod(null)}
+          />
+        )}
+
+        {fiatFunded && (
+          <div className="border border-[#00E100]/30 bg-green-50 px-4 py-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00E100]" />
+            <p className="text-xs font-bold uppercase tracking-widest text-green-700">Fiat payment received — ready to place order</p>
+          </div>
+        )}
+      </div>
+
       {error ? (
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">{error}</p>
       ) : null}
 
       <button
         type="submit"
-        disabled={isPlacingOrder || isDepositing || isSending || approvals.length === 0 || !selectedApproval}
+        disabled={isPlacingOrder || isDepositing || isSending || approvals.length === 0 || !selectedApproval || !paymentMethod || (paymentMethod === "fiat" && !fiatFunded)}
         className="w-full py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {buttonLabel}

@@ -99,6 +99,9 @@ export default function DoctorConsole() {
   const [created, setCreated] = useState<DoctorFiledAttestation | null>(null);
   const [records, setRecords] = useState<DoctorFiledAttestation[]>([]);
   const [verifiedPatients, setVerifiedPatients] = useState<DoctorRegisterPatientRecord[]>([]);
+  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
+  const [editWalletValue, setEditWalletValue] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const performanceLabel = useMemo(
     () => `${MONAD_BLOCK_TIME_MS}ms blocks · ${MONAD_FINALITY_MS}ms finality`,
@@ -412,6 +415,42 @@ export default function DoctorConsole() {
     setPatientWallet(record.patientWallet);
   }
 
+  async function handleUpdatePatientWallet(oldWallet: string) {
+    if (!doctorWallet || !editWalletValue.trim()) return;
+    setError("");
+    setIsSavingEdit(true);
+    try {
+      const authHeaders = await buildDoctorAuthHeaders(
+        "update_patient",
+        `${oldWallet}|${editWalletValue.trim()}`
+      );
+
+      const response = await fetch("/api/compliance/doctor/update-patient", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({
+          doctorWallet,
+          oldPatientWallet: oldWallet,
+          newPatientWallet: editWalletValue.trim(),
+        }),
+      });
+
+      const body = (await response.json()) as { ok: boolean; error?: string };
+      if (!response.ok || !body.ok) {
+        throw new Error(body.error || "Could not update patient wallet");
+      }
+
+      setEditingPatientId(null);
+      setEditWalletValue("");
+      await loadRecords();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update patient wallet";
+      setError(msg);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
   if (!doctorWallet) {
     return (
       <div className="border border-zinc-100 p-8 space-y-6 max-w-md">
@@ -722,16 +761,56 @@ export default function DoctorConsole() {
             ) : (
               verifiedPatients.map((record) => (
                 <div key={record.registryId} className="border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1.5">
-                  <p className="font-mono text-zinc-600 break-all">{record.patientWallet}</p>
-                  <p className="text-zinc-400">Registry: {record.registryId}</p>
-                  <p className="text-zinc-400">Verified: {new Date(record.verifiedAt).toLocaleString()}</p>
-                  <button
-                    type="button"
-                    onClick={() => applyVerifiedPatient(record)}
-                    className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
-                  >
-                    Use Patient Wallet
-                  </button>
+                  {editingPatientId === record.registryId ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editWalletValue}
+                        onChange={(e) => setEditWalletValue(e.target.value)}
+                        placeholder="New wallet address (0x...)"
+                        className="w-full bg-white border border-zinc-300 px-3 py-2 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleUpdatePatientWallet(record.patientWallet)}
+                          disabled={isSavingEdit || !editWalletValue.trim()}
+                          className="text-xs px-3 py-1.5 bg-[#00E100] text-black font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
+                        >
+                          {isSavingEdit ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingPatientId(null); setEditWalletValue(""); }}
+                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-mono text-zinc-600 break-all">{record.patientWallet}</p>
+                      <p className="text-zinc-400">Registry: {record.registryId}</p>
+                      <p className="text-zinc-400">Verified: {new Date(record.verifiedAt).toLocaleString()}</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyVerifiedPatient(record)}
+                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+                        >
+                          Use Wallet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingPatientId(record.registryId); setEditWalletValue(record.patientWallet); }}
+                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))
             )}

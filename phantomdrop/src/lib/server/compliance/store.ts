@@ -234,6 +234,54 @@ export function getDoctorApprovalRequestsByDoctor(
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export function updateDoctorVerifiedPatientWallet(
+  doctorWallet: string,
+  oldPatientWallet: string,
+  newPatientWallet: string
+): DoctorVerifiedPatientRecord | undefined {
+  const oldKey = verifiedPatientKey(doctorWallet, oldPatientWallet);
+  const existing = getVerifiedPatientMap().get(oldKey);
+  if (!existing) return undefined;
+
+  // Remove old key
+  getVerifiedPatientMap().delete(oldKey);
+
+  // Save under new key with updated wallet
+  const updated: DoctorVerifiedPatientRecord = {
+    ...existing,
+    record: { ...existing.record, patientWallet: newPatientWallet },
+  };
+  const newKey = verifiedPatientKey(doctorWallet, newPatientWallet);
+  getVerifiedPatientMap().set(newKey, updated);
+
+  persistStore();
+  return updated;
+}
+
+export function updateAttestationPatientWallet(
+  doctorWallet: string,
+  oldPatientWallet: string,
+  newPatientWallet: string
+): number {
+  const normalizedDoctor = normalizeWallet(doctorWallet);
+  const normalizedOld = normalizeWallet(oldPatientWallet);
+  let count = 0;
+
+  for (const [key, record] of getDoctorRecordMap().entries()) {
+    if (
+      normalizeWallet(record.attestation.doctorWallet) === normalizedDoctor &&
+      normalizeWallet(record.attestation.patientWallet) === normalizedOld
+    ) {
+      record.attestation = { ...record.attestation, patientWallet: newPatientWallet };
+      getDoctorRecordMap().set(key, record);
+      count++;
+    }
+  }
+
+  if (count > 0) persistStore();
+  return count;
+}
+
 export function resetComplianceStore(): void {
   global.__phantomdrop_compliance_records = new Map();
   global.__phantomdrop_doctor_attestations = new Map();

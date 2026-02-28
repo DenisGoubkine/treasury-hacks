@@ -153,7 +153,8 @@ export default function OrderPage() {
                 {[
                   { n: "01", title: "Connect wallet", desc: "Authenticate with MetaMask on Monad Testnet." },
                   { n: "02", title: "Select medication", desc: "Choose from medications your doctor has pre-approved." },
-                  { n: "03", title: "Place order", desc: "One click. Escrow is funded privately behind the scenes." },
+                  { n: "03", title: "Choose payment", desc: "Pay with crypto (MetaMask) or fiat (Visa, Venmo, PayPal) via Alchemy Pay." },
+                  { n: "04", title: "Place order", desc: "One click. Escrow is funded privately behind the scenes." },
                 ].map(({ n, title, desc }) => (
                   <div key={n} className="flex gap-4">
                     <span className="text-xs text-[#00E100] uppercase tracking-widest shrink-0 pt-0.5">{n}</span>

@@ -68,3 +68,11 @@ export const STATUS_STEPS = [
   "delivered",
   "paid",
 ] as const;
+
+// Alchemy Pay fiat on-ramp
+export const ALCHEMY_PAY_APP_ID = process.env.NEXT_PUBLIC_ALCHEMY_PAY_APP_ID || "";
+export const ALCHEMY_PAY_ENV = (process.env.NEXT_PUBLIC_ALCHEMY_PAY_ENV || "test") as "test" | "production";
+export const ALCHEMY_PAY_RAMP_URL =
+  ALCHEMY_PAY_ENV === "production"
+    ? "https://ramp.alchemypay.org"
+    : "https://ramptest.alchemypay.org";
