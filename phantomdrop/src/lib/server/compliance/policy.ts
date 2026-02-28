@@ -16,7 +16,6 @@ import {
 } from "@/lib/compliance/walletProof";
 
 const US_STATE = /^[A-Z]{2}$/;
-const NPI = /^\d{10}$/;
 const DEA = /^[A-Z]{2}\d{7}$/;
 const UNLINK_WALLET = /^unlink1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/;
 const EVM_WALLET = /^0x[a-fA-F0-9]{40}$/;
@@ -48,11 +47,11 @@ function validateCorePrescriptionFields(input: {
   const issues: ComplianceIssue[] = [];
   const requirePrescriptionId = input.requirePrescriptionId !== false;
 
-  if (!NPI.test(input.doctorNpi.trim())) {
+  if (!input.doctorNpi.trim()) {
     issues.push({
       field: "doctorNpi",
       code: "INVALID_NPI",
-      message: "We could not verify your prescriber ID (NPI).",
+      message: "Prescriber ID is required.",
     });
   }
 
