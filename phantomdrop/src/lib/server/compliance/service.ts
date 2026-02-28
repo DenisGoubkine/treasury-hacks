@@ -61,6 +61,11 @@ interface DoctorPrescriptionPayload {
   doctorWallet: string;
   medicationCode: string;
   medicationCategory: string;
+  medicationSource?: "local" | "fda" | "custom";
+  ndc?: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageForm?: string;
   controlledSchedule: ComplianceIntakeRequest["controlledSchedule"];
   quantity: number;
 }
@@ -73,6 +78,31 @@ function buildApprovalCode(): string {
 
 function buildRequestId(): string {
   return `req_${randomUUID().replace(/-/g, "")}`;
+}
+
+function normalizeMedicationLabelFromCode(medicationCode: string): string {
+  return medicationCode
+    .trim()
+    .replace(/^fda_ndc_/i, "")
+    .replace(/^fda_/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveMedicationCategory(input: {
+  medicationCode: string;
+  medicationCategory?: string;
+}): string {
+  if (input.medicationCategory?.trim()) {
+    return input.medicationCategory.trim();
+  }
+  const local = getMedicationByCode(input.medicationCode);
+  if (local?.label) {
+    return local.label;
+  }
+  const fallback = normalizeMedicationLabelFromCode(input.medicationCode);
+  return fallback || "Medication";
 }
 
 function normalizeLegalIdentity(input: {
@@ -235,17 +265,6 @@ export function createDoctorApprovalRequest(input: PatientDoctorApprovalRequest)
 
   const config = getComplianceConfig();
   const medication = getMedicationByCode(input.medicationCode);
-  if (!medication) {
-    return {
-      issues: [
-        {
-          field: "medicationCode",
-          code: "INVALID_MEDICATION_CODE",
-          message: "Selected medication is not in the approved catalog.",
-        },
-      ],
-    };
-  }
   const hash = legalIdentityHash(input);
   const registry = getDoctorVerifiedPatient(input.doctorWallet, input.patientWallet);
   const verificationStatus =
@@ -259,8 +278,8 @@ export function createDoctorApprovalRequest(input: PatientDoctorApprovalRequest)
     patientWallet: input.patientWallet,
     patientToken: tokenize(`${input.patientWallet}|${input.requestRelayId}`, config.attestationSecret, "ptok"),
     legalIdentityHash: hash,
-    medicationCode: medication.code,
-    medicationCategory: medication.label,
+    medicationCode: input.medicationCode,
+    medicationCategory: medication?.label || resolveMedicationCategory(input),
     requestRelayId: input.requestRelayId,
     relayStatus: "submitted",
     verificationStatus,
@@ -351,17 +370,10 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
   const attestationId = `att_${randomUUID().replace(/-/g, "")}`;
   const approvalCode = buildApprovalCode();
   const medication = getMedicationByCode(input.medicationCode);
-  if (!medication) {
-    return {
-      issues: [
-        {
-          field: "medicationCode",
-          code: "INVALID_MEDICATION_CODE",
-          message: "Selected medication is not in the approved catalog.",
-        },
-      ],
-    };
-  }
+  const resolvedMedicationCategory = resolveMedicationCategory({
+    medicationCode: input.medicationCode,
+    medicationCategory: input.medicationCategory,
+  });
   const prescriptionHash = createHash("sha256")
     .update(
       `${resolvedRequestId}|${input.patientWallet}|${input.doctorWallet}|${input.medicationCode}|${input.quantity}|${input.doctorNpi}`
@@ -393,7 +405,12 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
     patientToken,
     doctorToken,
     medicationCode: input.medicationCode,
-    medicationCategory: medication.label,
+    medicationCategory: resolvedMedicationCategory,
+    medicationSource: input.medicationSource || (medication?.source || "custom"),
+    ndc: input.ndc,
+    activeIngredient: input.activeIngredient,
+    strength: input.strength,
+    dosageForm: input.dosageForm,
     prescriptionHash,
     controlledSchedule: input.controlledSchedule,
     quantity: input.quantity,
@@ -413,6 +430,11 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
       doctorToken: attestation.doctorToken,
       medicationCode: attestation.medicationCode,
       medicationCategory: attestation.medicationCategory,
+      medicationSource: attestation.medicationSource,
+      ndc: attestation.ndc,
+      activeIngredient: attestation.activeIngredient,
+      strength: attestation.strength,
+      dosageForm: attestation.dosageForm,
       prescriptionHash: attestation.prescriptionHash,
       controlledSchedule: attestation.controlledSchedule,
       quantity: attestation.quantity,
@@ -432,7 +454,12 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
       patientWallet: input.patientWallet,
       doctorWallet: input.doctorWallet,
       medicationCode: input.medicationCode,
-      medicationCategory: medication.label,
+      medicationCategory: resolvedMedicationCategory,
+      medicationSource: input.medicationSource || (medication?.source || "custom"),
+      ndc: input.ndc,
+      activeIngredient: input.activeIngredient,
+      strength: input.strength,
+      dosageForm: input.dosageForm,
       controlledSchedule: input.controlledSchedule,
       quantity: input.quantity,
     } satisfies DoctorPrescriptionPayload,
@@ -510,6 +537,11 @@ export function getPatientApprovedMedications(patientWallet: string): PatientApp
       doctorWallet: attestation.doctorWallet,
       medicationCode: attestation.medicationCode,
       medicationCategory: attestation.medicationCategory,
+      medicationSource: attestation.medicationSource,
+      ndc: attestation.ndc,
+      activeIngredient: attestation.activeIngredient,
+      strength: attestation.strength,
+      dosageForm: attestation.dosageForm,
       controlledSchedule: attestation.controlledSchedule,
       quantity: attestation.quantity,
       validUntilIso: attestation.validUntilIso,

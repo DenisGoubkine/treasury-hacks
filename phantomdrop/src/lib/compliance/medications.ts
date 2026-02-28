@@ -5,15 +5,38 @@ export type MedicationCatalogItem = {
   label: string;
   category: string;
   defaultSchedule: ControlledSchedule;
-  ndc?: string; // National Drug Code from FDA
+  ndc?: string;
   activeIngredient?: string;
   strength?: string;
   dosageForm?: string;
-  source: "local" | "fda"; // Where this drug came from
+  source: "local" | "fda";
 };
 
-// Simple in-memory cache for FDA lookups (clears on server restart)
-const fdaDrugCache = new Map<string, MedicationCatalogItem | null>();
+interface OpenFdaMeta {
+  results?: unknown[];
+}
+
+interface OpenFdaNdcResult {
+  product_ndc?: string;
+  brand_name?: string;
+  generic_name?: string;
+  dosage_form?: string;
+  route?: string[];
+  active_ingredients?: Array<{ name?: string; strength?: string }>;
+}
+
+interface ListMedicationOptions {
+  query?: string;
+  skip?: number;
+  limit?: number;
+}
+
+const DEFAULT_LIMIT = 24;
+const MAX_LIMIT = 50;
+const NDC_BASE_URL = "https://api.fda.gov/drug/ndc.json";
+const LABEL_BASE_URL = "https://api.fda.gov/drug/label.json";
+
+const fdaDrugCache = new Map<string, MedicationCatalogItem[]>();
 
 function normalizeForComparison(str: string): string {
   return str.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -122,61 +145,179 @@ export function getMedicationByCode(code: string): MedicationCatalogItem | undef
   return MEDICATION_CATALOG.find((item) => item.code === normalized);
 }
 
-/**
- * Search OpenFDA for drug information
- * Returns drug details if found (name, active ingredients, strength, etc)
- * Useful for doctors to lookup and verify medications
- */
+function normalizeCategory(label: string): string {
+  if (/\b(insulin|metformin|glipizide|empagliflozin)\b/i.test(label)) return "Diabetes";
+  if (/\b(sertraline|fluoxetine|adderall|vyvanse|escitalopram|bupropion)\b/i.test(label)) return "Mental Health";
+  if (/\b(amoxicillin|azithromycin|cephalexin|doxycycline)\b/i.test(label)) return "Antibiotic";
+  if (/\b(atorvastatin|lisinopril|amlodipine|losartan)\b/i.test(label)) return "Cardiovascular";
+  if (/\b(testosterone|estradiol|progesterone)\b/i.test(label)) return "Hormone Therapy";
+  return "General";
+}
+
+function dedupeByCode(items: MedicationCatalogItem[]): MedicationCatalogItem[] {
+  const map = new Map<string, MedicationCatalogItem>();
+  for (const item of items) {
+    if (!map.has(item.code)) {
+      map.set(item.code, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
+function mapNdcResultToMedication(item: OpenFdaNdcResult): MedicationCatalogItem | null {
+  const label = item.brand_name?.trim() || item.generic_name?.trim() || "";
+  if (!label) return null;
+
+  const activeIngredient = item.active_ingredients?.[0]?.name?.trim();
+  const strength = item.active_ingredients?.[0]?.strength?.trim();
+  const dosageForm = item.dosage_form?.trim() || item.route?.[0]?.trim();
+  const ndc = item.product_ndc?.trim();
+  const key = ndc || `${label}|${activeIngredient || ""}|${strength || ""}|${dosageForm || ""}`;
+
+  return {
+    code: ndc ? `fda_ndc_${ndc.replace(/[^a-zA-Z0-9]/g, "_")}` : `fda_${stableHash16(key)}`,
+    label,
+    category: normalizeCategory(`${label} ${activeIngredient || ""}`),
+    defaultSchedule: "non_controlled",
+    ndc,
+    activeIngredient,
+    strength,
+    dosageForm,
+    source: "fda",
+  };
+}
+
+async function fetchOpenFdaNdc(query: string, limit: number, skip: number): Promise<MedicationCatalogItem[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  params.set("skip", String(skip));
+  if (query.trim()) {
+    const q = query.trim().replace(/"/g, '\\"');
+    params.set(
+      "search",
+      `brand_name:"${q}" OR generic_name:"${q}" OR active_ingredients.name:"${q}"`
+    );
+  }
+
+  const response = await fetch(`${NDC_BASE_URL}?${params.toString()}`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = (await response.json()) as OpenFdaMeta;
+  const results = (data.results || []) as OpenFdaNdcResult[];
+  return dedupeByCode(results.map(mapNdcResultToMedication).filter((item): item is MedicationCatalogItem => Boolean(item)));
+}
+
+async function fetchOpenFdaLabelFallback(query: string, limit: number): Promise<MedicationCatalogItem[]> {
+  if (!query.trim()) return [];
+  const q = query.trim().replace(/"/g, '\\"');
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  params.set(
+    "search",
+    `openfda.brand_name:"${q}" OR openfda.generic_name:"${q}" OR openfda.substance_name:"${q}"`
+  );
+
+  const response = await fetch(`${LABEL_BASE_URL}?${params.toString()}`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = (await response.json()) as {
+    results?: Array<{
+      id?: string;
+      openfda?: {
+        brand_name?: string[];
+        generic_name?: string[];
+        substance_name?: string[];
+        product_ndc?: string[];
+        dosage_form?: string[];
+      };
+    }>;
+  };
+
+  const mapped: Array<MedicationCatalogItem | null> = (data.results || []).map((result) => {
+    const label =
+      result.openfda?.brand_name?.[0] ||
+      result.openfda?.generic_name?.[0] ||
+      result.openfda?.substance_name?.[0] ||
+      "";
+    if (!label) return null;
+    const ndc = result.openfda?.product_ndc?.[0];
+    const key = ndc || result.id || label;
+    return {
+      code: ndc ? `fda_ndc_${ndc.replace(/[^a-zA-Z0-9]/g, "_")}` : `fda_${stableHash16(key)}`,
+      label,
+      category: normalizeCategory(label),
+      defaultSchedule: "non_controlled" as const,
+      ndc,
+      activeIngredient: result.openfda?.substance_name?.[0],
+      dosageForm: result.openfda?.dosage_form?.[0],
+      source: "fda" as const,
+    };
+  });
+
+  return dedupeByCode(mapped.filter((item): item is MedicationCatalogItem => item !== null));
+}
+
+export async function listMedicationCatalog(options: ListMedicationOptions = {}): Promise<MedicationCatalogItem[]> {
+  const query = options.query?.trim() || "";
+  const skip = Math.max(0, options.skip || 0);
+  const limit = Math.min(MAX_LIMIT, Math.max(1, options.limit || DEFAULT_LIMIT));
+
+  if (!query) {
+    const local = MEDICATION_CATALOG.slice(skip, skip + limit);
+    if (local.length >= limit || skip > 0) {
+      return local;
+    }
+    const fda = await fetchOpenFdaNdc("", limit - local.length, 0);
+    return dedupeByCode([...local, ...fda]).slice(0, limit);
+  }
+
+  const cacheKey = `${normalizeForComparison(query)}|${skip}|${limit}`;
+  if (fdaDrugCache.has(cacheKey)) {
+    return fdaDrugCache.get(cacheKey) || [];
+  }
+
+  const localMatches = MEDICATION_CATALOG.filter((item) => {
+    const haystack = `${item.label} ${item.activeIngredient || ""} ${item.category}`.toLowerCase();
+    return haystack.includes(query.toLowerCase());
+  }).slice(0, Math.min(10, limit));
+
+  let fdaMatches = await fetchOpenFdaNdc(query, limit, skip);
+  if (fdaMatches.length === 0) {
+    fdaMatches = await fetchOpenFdaLabelFallback(query, limit);
+  }
+
+  const merged = dedupeByCode([...localMatches, ...fdaMatches]).slice(0, limit);
+  fdaDrugCache.set(cacheKey, merged);
+  return merged;
+}
+
 export async function searchFdaDrug(
   query: string
 ): Promise<Array<{ name: string; activeIngredient: string; strength?: string; dosageForm?: string }>> {
-  try {
-    // OpenFDA API limit: queries must be at least 2 characters
-    if (!query || query.trim().length < 2) {
-      return [];
-    }
-
-    // Search in both brand name and generic name
-    const searchParam = encodeURIComponent(query.trim());
-    const url = `https://api.fda.gov/drug/label.json?search=brand_name:"${searchParam}" OR generic_name:"${searchParam}"&limit=10`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`FDA API error: ${response.status}`);
-      return [];
-    }
-
-    const data = (await response.json()) as {
-      results?: Array<{
-        brand_name?: string[];
-        generic_name?: string[];
-        active_ingredient?: Array<{ name: string; strength: string }>;
-        dosage_form?: string[];
-      }>;
-    };
-
-    if (!data.results || data.results.length === 0) {
-      return [];
-    }
-
-    return data.results.map((result) => ({
-      name: (result.brand_name?.[0] || result.generic_name?.[0] || "Unknown") as string,
-      activeIngredient: (result.active_ingredient?.[0]?.name || "Unknown") as string,
-      strength: result.active_ingredient?.[0]?.strength,
-      dosageForm: result.dosage_form?.[0],
+  const matches = await listMedicationCatalog({ query, limit: 12, skip: 0 });
+  return matches
+    .filter((item) => item.source === "fda")
+    .map((item) => ({
+      name: item.label,
+      activeIngredient: item.activeIngredient || "Unknown",
+      strength: item.strength,
+      dosageForm: item.dosageForm,
     }));
-  } catch (error) {
-    console.error("Failed to search FDA database:", error);
-    return [];
-  }
 }
 
-/**
- * Validate if a medication exists in FDA database or local catalog
- * Returns true if drug is found and valid
- */
 export async function validateMedicationExists(medicationLabel: string): Promise<boolean> {
-  // Check local catalog first (fast path)
   const normalized = normalizeForComparison(medicationLabel);
   const localMatch = MEDICATION_CATALOG.find(
     (item) => normalizeForComparison(item.label) === normalized
@@ -186,26 +327,10 @@ export async function validateMedicationExists(medicationLabel: string): Promise
     return true;
   }
 
-  // Check cache
-  const cacheKey = normalizeForComparison(medicationLabel);
-  if (fdaDrugCache.has(cacheKey)) {
-    return fdaDrugCache.get(cacheKey) !== null;
-  }
-
-  // Query FDA
-  const fdaResults = await searchFdaDrug(medicationLabel);
-  const found = fdaResults.length > 0;
-
-  // Cache the result (null if not found)
-  fdaDrugCache.set(cacheKey, found ? { code: "", label: "", category: "", defaultSchedule: "non_controlled", source: "fda" } : null);
-
-  return found;
+  const results = await listMedicationCatalog({ query: medicationLabel, limit: 5, skip: 0 });
+  return results.length > 0;
 }
 
-/**
- * Get suggestions for medication based on partial name
- * Combines local catalog + FDA results
- */
 export async function getMedicationSuggestions(
   partialName: string
 ): Promise<
@@ -216,33 +341,15 @@ export async function getMedicationSuggestions(
     activeIngredient?: string;
   }>
 > {
-  const searchTerm = partialName.trim().toLowerCase();
-
-  if (searchTerm.length === 0) {
+  const searchTerm = partialName.trim();
+  if (searchTerm.length < 1) {
     return [];
   }
-
-  // Get local matches
-  const localMatches = MEDICATION_CATALOG.filter((item) =>
-    item.label.toLowerCase().includes(searchTerm)
-  ).slice(0, 5);
-
-  // Get FDA matches (only if local results are sparse)
-  let fdaMatches: typeof localMatches = [];
-  if (localMatches.length < 3) {
-    const fdaResults = await searchFdaDrug(partialName);
-    fdaMatches = fdaResults.slice(0, 5).map((result) => ({
-      code: `fda_${stableHash16(result.name)}`,
-      label: result.name,
-      category: "FDA Lookup",
-      defaultSchedule: "non_controlled" as const,
-      source: "fda" as const,
-      activeIngredient: result.activeIngredient,
-    }));
-  }
-
-  return [
-    ...localMatches.map((item) => ({ label: item.label, category: item.category, source: "local" as const, activeIngredient: item.activeIngredient })),
-    ...fdaMatches,
-  ];
+  const results = await listMedicationCatalog({ query: searchTerm, limit: 10, skip: 0 });
+  return results.map((item) => ({
+    label: item.label,
+    category: item.category,
+    source: item.source,
+    activeIngredient: item.activeIngredient,
+  }));
 }

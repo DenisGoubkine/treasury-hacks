@@ -3,12 +3,12 @@ import "server-only";
 import {
   ComplianceIntakeRequest,
   ComplianceIssue,
+  DoctorLinkPharmacyRequest,
   DoctorRegisterPatientRequest,
   DoctorFileAttestationRequest,
   LegalIdentityInput,
   PatientDoctorApprovalRequest,
 } from "@/lib/compliance/types";
-import { getMedicationByCode } from "@/lib/compliance/medications";
 import {
   PATIENT_DOCTOR_WALLET_PROOF_VERSION,
   isHexEcdsaSignature,
@@ -21,6 +21,7 @@ const UNLINK_WALLET = /^unlink1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/;
 const EVM_WALLET = /^0x[a-fA-F0-9]{40}$/;
 const RELAY_ID = /^[a-zA-Z0-9_-]{6,120}$/;
 const NONCE = /^[a-zA-Z0-9_-]{12,120}$/;
+const MEDICATION_CODE = /^[a-zA-Z0-9_.:-]{2,180}$/;
 
 function isClientWallet(value: string): boolean {
   const normalized = value.trim();
@@ -261,11 +262,11 @@ export function validateDoctorFileAttestationInput(
       code: "MISSING_MEDICATION_CODE",
       message: "Medication selection is required.",
     });
-  } else if (!getMedicationByCode(input.medicationCode)) {
+  } else if (!MEDICATION_CODE.test(input.medicationCode.trim())) {
     issues.push({
       field: "medicationCode",
       code: "INVALID_MEDICATION_CODE",
-      message: "Selected medication is not in the approved catalog.",
+      message: "Medication code format is invalid.",
     });
   }
 
@@ -365,13 +366,13 @@ export function validatePatientDoctorApprovalRequestInput(
     issues.push({
       field: "medicationCode",
       code: "MISSING_MEDICATION_CODE",
-      message: "Select a medication from the dropdown list.",
+      message: "Select a medication from the search catalog.",
     });
-  } else if (!getMedicationByCode(input.medicationCode)) {
+  } else if (!MEDICATION_CODE.test(input.medicationCode.trim())) {
     issues.push({
       field: "medicationCode",
       code: "INVALID_MEDICATION_CODE",
-      message: "Selected medication is not in the approved catalog.",
+      message: "Medication code format is invalid.",
     });
   }
 
@@ -425,5 +426,45 @@ export function validatePatientDoctorApprovalRequestInput(
   }
 
   issues.push(...validateLegalIdentityFields(input));
+  return issues;
+}
+
+export function validateDoctorLinkPharmacyInput(
+  input: DoctorLinkPharmacyRequest
+): ComplianceIssue[] {
+  const issues: ComplianceIssue[] = [];
+
+  if (!isClientWallet(input.doctorWallet)) {
+    issues.push({
+      field: "doctorWallet",
+      code: "INVALID_DOCTOR_WALLET",
+      message: "Doctor wallet must be unlink1... or 0x... format.",
+    });
+  }
+
+  if (!isClientWallet(input.pharmacyWallet)) {
+    issues.push({
+      field: "pharmacyWallet",
+      code: "INVALID_PHARMACY_WALLET",
+      message: "Pharmacy wallet must be unlink1... or 0x... format.",
+    });
+  }
+
+  if (input.pharmacyName.trim().length < 2) {
+    issues.push({
+      field: "pharmacyName",
+      code: "INVALID_PHARMACY_NAME",
+      message: "Pharmacy name is required.",
+    });
+  }
+
+  if (input.pharmacyLicenseId.trim().length < 3) {
+    issues.push({
+      field: "pharmacyLicenseId",
+      code: "INVALID_PHARMACY_LICENSE",
+      message: "Pharmacy license identifier is required.",
+    });
+  }
+
   return issues;
 }

@@ -53,6 +53,11 @@ export interface DoctorFileAttestationRequest {
   patientWallet: string;
   medicationCode: string;
   medicationCategory: string;
+  medicationSource?: "local" | "fda" | "custom";
+  ndc?: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageForm?: string;
   controlledSchedule: ControlledSchedule;
   quantity: number;
   validUntilIso: string;
@@ -69,6 +74,11 @@ export interface DoctorFiledAttestation {
   doctorToken: string;
   medicationCode: string;
   medicationCategory: string;
+  medicationSource?: "local" | "fda" | "custom";
+  ndc?: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageForm?: string;
   prescriptionHash: string;
   controlledSchedule: ControlledSchedule;
   quantity: number;
@@ -133,6 +143,11 @@ export interface PatientApprovedMedication {
   doctorWallet: string;
   medicationCode: string;
   medicationCategory: string;
+  medicationSource?: "local" | "fda" | "custom";
+  ndc?: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageForm?: string;
   controlledSchedule: ControlledSchedule;
   quantity: number;
   validUntilIso: string;
@@ -168,6 +183,31 @@ export interface DoctorRegisterPatientRecord {
 export interface DoctorRegisterPatientResponse {
   ok: boolean;
   record?: DoctorRegisterPatientRecord;
+  issues?: ComplianceIssue[];
+  error?: string;
+}
+
+export interface DoctorLinkPharmacyRequest {
+  doctorWallet: string;
+  pharmacyWallet: string;
+  pharmacyName: string;
+  pharmacyLicenseId: string;
+}
+
+export interface DoctorLinkedPharmacyRecord {
+  linkId: string;
+  doctorWallet: string;
+  pharmacyWallet: string;
+  pharmacyName: string;
+  pharmacyLicenseId: string;
+  linkedAt: string;
+  signature: string;
+}
+
+export interface DoctorLinkPharmacyResponse {
+  ok: boolean;
+  record?: DoctorLinkedPharmacyRecord;
+  records?: DoctorLinkedPharmacyRecord[];
   issues?: ComplianceIssue[];
   error?: string;
 }

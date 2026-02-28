@@ -91,6 +91,38 @@ async function waitForTxReceipt(provider: Eip1193Provider, txHash: string): Prom
 }
 
 type EscrowStep = "wallet" | "depositing" | "sending" | "creating" | null;
+const ADDRESS_HISTORY_LIMIT = 8;
+const ADDRESS_STORAGE_PREFIX = "phantomdrop:address_history:v1";
+
+function getAddressHistoryStorageKey(wallet: string): string {
+  return `${ADDRESS_STORAGE_PREFIX}:${wallet.trim().toLowerCase()}`;
+}
+
+function loadAddressHistory(wallet: string): string[] {
+  if (typeof window === "undefined" || !wallet) return [];
+  try {
+    const key = getAddressHistoryStorageKey(wallet);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as string[];
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistAddressHistory(wallet: string, addresses: string[]): void {
+  if (typeof window === "undefined" || !wallet) return;
+  const key = getAddressHistoryStorageKey(wallet);
+  window.localStorage.setItem(key, JSON.stringify(addresses.slice(0, ADDRESS_HISTORY_LIMIT)));
+}
+
+function upsertAddress(addresses: string[], nextAddress: string): string[] {
+  const normalized = nextAddress.trim();
+  if (!normalized) return addresses;
+  const withoutDup = addresses.filter((item) => item.toLowerCase() !== normalized.toLowerCase());
+  return [normalized, ...withoutDup].slice(0, ADDRESS_HISTORY_LIMIT);
+}
 
 interface Props {
   patientWallet: string;
@@ -105,6 +137,7 @@ export default function OrderForm({ patientWallet }: Props) {
   const { balance } = useUnlinkBalance(TOKEN_ADDRESS);
 
   const [dropLocation, setDropLocation] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [selectedApprovalCode, setSelectedApprovalCode] = useState("");
   const [approvals, setApprovals] = useState<PatientApprovedMedication[]>([]);
 
@@ -181,6 +214,11 @@ export default function OrderForm({ patientWallet }: Props) {
       setError(msg);
     });
   }, [loadApprovedMedications]);
+
+  useEffect(() => {
+    if (!patientWallet) return;
+    setAddressSuggestions(loadAddressHistory(patientWallet));
+  }, [patientWallet]);
 
   async function placeEscrowOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -307,6 +345,10 @@ export default function OrderForm({ patientWallet }: Props) {
       };
 
       saveOrder(order);
+
+      const updatedHistory = upsertAddress(addressSuggestions, dropLocation);
+      setAddressSuggestions(updatedHistory);
+      persistAddressHistory(patientWallet, updatedHistory);
       router.push("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not place order";
@@ -387,14 +429,40 @@ export default function OrderForm({ patientWallet }: Props) {
 
       <div className="space-y-2">
         <label className="block text-xs font-bold uppercase tracking-widest text-zinc-900">Delivery location</label>
+        {addressSuggestions.length > 0 ? (
+          <p className="text-xs text-zinc-400">
+            Autofill from your recent addresses is enabled.
+          </p>
+        ) : null}
         <input
           type="text"
           value={dropLocation}
           onChange={(e) => setDropLocation(e.target.value)}
           placeholder="123 Main St, Apt 4B"
+          list="drop-location-suggestions"
+          autoComplete="street-address"
           className="w-full bg-white border border-zinc-200 px-4 py-3 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
           required
         />
+        <datalist id="drop-location-suggestions">
+          {addressSuggestions.map((address) => (
+            <option key={address} value={address} />
+          ))}
+        </datalist>
+        {addressSuggestions.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {addressSuggestions.slice(0, 3).map((address) => (
+              <button
+                key={address}
+                type="button"
+                onClick={() => setDropLocation(address)}
+                className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+              >
+                {address.length > 36 ? `${address.slice(0, 36)}...` : address}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="border border-zinc-100 bg-zinc-50 p-5 space-y-3">
