@@ -17,24 +17,23 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b border-zinc-800 bg-black/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-purple-400 text-xl">👻</span>
-          <span className="font-bold text-white tracking-tight">
+    <nav className="border-b border-zinc-100 bg-white sticky top-0 z-50">
+      <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between">
+        <Link href="/" className="group">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-900 group-hover:text-[#00E100] transition-colors">
             PhantomDrop
           </span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center">
           {links.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+              className={`px-4 h-12 flex items-center text-xs uppercase tracking-widest transition-colors border-l border-zinc-100 ${
                 pathname === href
-                  ? "bg-purple-600 text-white"
-                  : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  ? "text-[#00E100]"
+                  : "text-zinc-400 hover:text-zinc-900"
               }`}
             >
               {label}

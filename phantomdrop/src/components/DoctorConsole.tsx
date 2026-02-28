@@ -414,10 +414,10 @@ export default function DoctorConsole() {
 
   if (!doctorWallet) {
     return (
-      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-white">Doctor Login</h2>
-          <p className="text-sm text-zinc-400">
+      <div className="border border-zinc-100 p-8 space-y-6 max-w-md">
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Doctor Login</p>
+          <p className="text-xs text-zinc-400 leading-relaxed">
             Connect MetaMask once to load your workspace immediately. No separate funding step is required.
           </p>
         </div>
@@ -426,17 +426,17 @@ export default function DoctorConsole() {
           type="button"
           onClick={connectDoctorWallet}
           disabled={isConnectingWallet}
-          className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+          className="px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
         >
-          {isConnectingWallet ? "Connecting..." : "Connect MetaMask"}
+          {isConnectingWallet ? "Connecting..." : "Connect MetaMask →"}
         </button>
 
-        <p className="text-xs text-zinc-500">
-          This signs secure auth messages only. It does not move funds.
+        <p className="text-xs text-zinc-400 uppercase tracking-wide">
+          Signs secure auth messages only. Does not move funds.
         </p>
 
         {error ? (
-          <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">{error}</p>
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">{error}</p>
         ) : null}
       </div>
     );
@@ -445,37 +445,37 @@ export default function DoctorConsole() {
   return (
     <div className="space-y-6">
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-1">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Doctor Wallet</p>
-          <p className="text-xs font-mono text-zinc-300 break-all">{doctorWallet}</p>
+        <div className="border border-zinc-100 bg-zinc-50 p-4 space-y-1">
+          <p className="text-[10px] uppercase tracking-widest text-zinc-400">Doctor Wallet</p>
+          <p className="text-xs font-mono text-zinc-600 break-all">{doctorWallet}</p>
         </div>
 
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-2">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Connection</p>
-          <p className="text-sm text-zinc-300">MetaMask authenticated</p>
+        <div className="border border-zinc-100 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-zinc-400">Connection</p>
+          <p className="text-xs text-zinc-600">MetaMask authenticated</p>
           <button
             type="button"
             onClick={connectDoctorWallet}
             disabled={isConnectingWallet}
-            className="mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            className="mt-1 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
           >
             {isConnectingWallet ? "Switching..." : "Switch Wallet"}
           </button>
         </div>
 
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-2">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Workspace</p>
-          <p className="text-sm text-zinc-300">
-            Verified patients: <span className="text-white font-semibold">{verifiedPatients.length}</span>
+        <div className="border border-zinc-100 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-zinc-400">Workspace</p>
+          <p className="text-xs text-zinc-600">
+            Verified patients: <span className="font-bold text-zinc-900">{verifiedPatients.length}</span>
           </p>
-          <p className="text-sm text-zinc-300">
-            Filed attestations: <span className="text-white font-semibold">{records.length}</span>
+          <p className="text-xs text-zinc-600">
+            Filed attestations: <span className="font-bold text-zinc-900">{records.length}</span>
           </p>
           <button
             type="button"
             onClick={refreshWorkspace}
             disabled={isRefreshingWorkspace}
-            className="mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            className="mt-1 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
           >
             {isRefreshingWorkspace ? "Refreshing..." : "Refresh Workspace"}
           </button>
@@ -483,31 +483,31 @@ export default function DoctorConsole() {
       </div>
 
       {error ? (
-        <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">{error}</p>
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">{error}</p>
       ) : null}
 
       <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-6">
         <div className="space-y-6">
           <form
             onSubmit={handleRegisterPatient}
-            className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 space-y-4"
+            className="border border-zinc-100 p-6 space-y-4"
           >
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Step 1: Register Verified Patient</h2>
-              <p className="text-sm text-zinc-400">
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Step 01 — Register Verified Patient</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Register legal patient identity against wallet once before filing approvals.
               </p>
             </div>
 
-            <div className="text-xs text-zinc-500 font-mono bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+            <div className="text-xs text-zinc-500 font-mono border border-zinc-100 bg-zinc-50 px-3 py-2">
               Doctor wallet: {doctorWallet}
             </div>
 
-            <div className="text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-              Wallet-sign auth enabled: each action is signed with MetaMask. No API keys needed.
+            <div className="text-xs text-zinc-400 border border-zinc-100 bg-zinc-50 px-3 py-2">
+              Wallet-sign auth enabled — each action signed with MetaMask. No API keys needed.
             </div>
-            <div className="text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-              No upfront funding required for registry setup. Step 1 is secured with wallet signature + nonce.
+            <div className="text-xs text-zinc-400 border border-zinc-100 bg-zinc-50 px-3 py-2">
+              No upfront funding required. Step 1 secured with wallet signature + nonce.
             </div>
 
             <input
@@ -518,8 +518,8 @@ export default function DoctorConsole() {
                 setRegistryPatientWallet(value);
                 setPatientWallet(value);
               }}
-              placeholder="Patient wallet (0x... recommended)"
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+              placeholder="Patient wallet (0x...)"
+              className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
               required
             />
 
@@ -529,14 +529,14 @@ export default function DoctorConsole() {
                 value={registryLegalName}
                 onChange={(e) => setRegistryLegalName(e.target.value)}
                 placeholder="Legal full name"
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
               <input
                 type="date"
                 value={registryDob}
                 onChange={(e) => setRegistryDob(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
             </div>
@@ -548,7 +548,7 @@ export default function DoctorConsole() {
                 onChange={(e) => setRegistryState(e.target.value.toUpperCase())}
                 placeholder="State (NY, CA, ...)"
                 maxLength={2}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
               <input
@@ -556,30 +556,30 @@ export default function DoctorConsole() {
                 value={registryHealthCard}
                 onChange={(e) => setRegistryHealthCard(e.target.value)}
                 placeholder="Health card number"
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-zinc-500">Performance target: {performanceLabel}</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wide">{performanceLabel}</p>
               <button
                 type="submit"
                 disabled={isRegistering}
-                className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-xl text-sm font-semibold text-white border border-zinc-700"
+                className="px-5 py-2.5 bg-zinc-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-zinc-700 disabled:opacity-50 transition-colors"
               >
-                {isRegistering ? "Registering..." : "Register Verified Patient"}
+                {isRegistering ? "Registering..." : "Register Patient"}
               </button>
             </div>
           </form>
 
           <form
             onSubmit={handleCreate}
-            className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 space-y-4"
+            className="border border-zinc-100 p-6 space-y-4"
           >
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Step 2: File Doctor Attestation</h2>
-              <p className="text-sm text-zinc-400">
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Step 02 — File Doctor Attestation</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Choose a verified patient wallet, confirm medication policy, then issue approval for patient checkout.
               </p>
             </div>
@@ -588,13 +588,13 @@ export default function DoctorConsole() {
               type="text"
               value={patientWallet}
               readOnly
-              placeholder="Patient wallet (auto-filled)"
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-zinc-300 placeholder-zinc-600"
+              placeholder="Patient wallet (auto-filled from Step 1)"
+              className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2.5 text-xs text-zinc-600 placeholder-zinc-400 focus:outline-none transition-colors"
               required
             />
 
-            <p className="text-xs text-zinc-500">
-              Patient wallet auto-fills from Step 1 or from the verified-patient list below. Request ID is not required.
+            <p className="text-xs text-zinc-400">
+              Patient wallet auto-fills from Step 1 or from the verified-patient list.
             </p>
 
             <div className="grid md:grid-cols-2 gap-3">
@@ -603,7 +603,7 @@ export default function DoctorConsole() {
                 value={doctorNpi}
                 onChange={(e) => setDoctorNpi(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 placeholder="Doctor NPI (10 digits)"
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
               <input
@@ -611,7 +611,7 @@ export default function DoctorConsole() {
                 value={doctorDea}
                 onChange={(e) => setDoctorDea(e.target.value.toUpperCase())}
                 placeholder="Doctor DEA"
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required={controlledSchedule !== "non_controlled"}
               />
             </div>
@@ -620,7 +620,7 @@ export default function DoctorConsole() {
               <select
                 value={medicationCode}
                 onChange={(e) => setMedicationCode(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors appearance-none"
               >
                 {MEDICATION_CATALOG.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -631,7 +631,7 @@ export default function DoctorConsole() {
               <select
                 value={controlledSchedule}
                 onChange={(e) => setControlledSchedule(e.target.value as ControlledSchedule)}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors appearance-none"
               >
                 <option value="non_controlled">Non-controlled</option>
                 <option value="schedule_iii_v">Controlled (III-V)</option>
@@ -647,50 +647,50 @@ export default function DoctorConsole() {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="Quantity"
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
               <input
                 type="datetime-local"
                 value={validUntilIso}
                 onChange={(e) => setValidUntilIso(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors"
                 required
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-zinc-300">
+            <label className="flex items-center gap-2 text-xs text-zinc-600 uppercase tracking-wide">
               <input
                 type="checkbox"
                 checked={canPurchase}
                 onChange={(e) => setCanPurchase(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-900"
+                className="border-zinc-300"
               />
-              Patient is approved to purchase this prescription
+              Patient approved to purchase this prescription
             </label>
 
             <div className="flex items-center justify-end">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+                className="px-8 py-3 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
               >
-                {isSubmitting ? "Filing..." : "File Attestation"}
+                {isSubmitting ? "Filing..." : "File Attestation →"}
               </button>
             </div>
           </form>
         </div>
 
         <div className="space-y-4">
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 space-y-3">
-            <h3 className="text-lg font-semibold text-white">Latest Approval Code</h3>
+          <div className="border border-zinc-100 p-6 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Latest Approval Code</p>
             {!created ? (
-              <p className="text-sm text-zinc-500">No attestation filed yet in this session.</p>
+              <p className="text-xs text-zinc-400">No attestation filed yet in this session.</p>
             ) : (
               <>
-                <div className="text-xs text-zinc-500">Share this with the patient</div>
+                <div className="text-xs text-zinc-400 uppercase tracking-wide">Share this code with the patient</div>
                 <div className="flex items-center gap-2">
-                  <div className="font-mono text-sm text-green-300 bg-green-950/20 border border-green-900/40 rounded-lg p-3 break-all flex-1">
+                  <div className="font-mono text-xs text-[#00E100] border border-green-200 bg-green-50 px-3 py-2.5 break-all flex-1">
                     {created.approvalCode}
                   </div>
                   <button
@@ -700,35 +700,35 @@ export default function DoctorConsole() {
                       setIsCopyingApproval(true);
                       setTimeout(() => setIsCopyingApproval(false), 1200);
                     }}
-                    className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700"
+                    className="text-xs px-3 py-2 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
                   >
                     {isCopyingApproval ? "Copied" : "Copy"}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
-                  <p>Reference: <span className="text-zinc-200">{created.requestId}</span></p>
-                  <p>Can purchase: <span className="text-zinc-200">{created.canPurchase ? "Yes" : "No"}</span></p>
-                  <p>Anchor hash: <span className="text-zinc-200">{created.chainAnchor.anchorHash.slice(0, 18)}...</span></p>
-                  <p>Tx hash: <span className="text-zinc-200">{created.chainAnchor.anchorTxHash.slice(0, 18)}...</span></p>
+                  <p>Ref: <span className="text-zinc-700">{created.requestId}</span></p>
+                  <p>Can buy: <span className="text-zinc-700">{created.canPurchase ? "Yes" : "No"}</span></p>
+                  <p>Anchor: <span className="text-zinc-700 font-mono">{created.chainAnchor.anchorHash.slice(0, 14)}...</span></p>
+                  <p>Tx: <span className="text-zinc-700 font-mono">{created.chainAnchor.anchorTxHash.slice(0, 14)}...</span></p>
                 </div>
               </>
             )}
           </div>
 
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3 max-h-[300px] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-zinc-200">Verified Patients</h3>
+          <div className="border border-zinc-100 p-4 space-y-3 max-h-[300px] overflow-y-auto">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Verified Patients</p>
             {verifiedPatients.length === 0 ? (
-              <p className="text-sm text-zinc-500">No verified patients in this workspace yet.</p>
+              <p className="text-xs text-zinc-400">No verified patients in this workspace yet.</p>
             ) : (
               verifiedPatients.map((record) => (
-                <div key={record.registryId} className="p-3 rounded-xl border border-zinc-800 bg-zinc-950/50 text-xs space-y-2">
-                  <p className="font-mono text-zinc-300 break-all">{record.patientWallet}</p>
-                  <p className="text-zinc-500">Registry: {record.registryId}</p>
-                  <p className="text-zinc-600">Verified: {new Date(record.verifiedAt).toLocaleString()}</p>
+                <div key={record.registryId} className="border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1.5">
+                  <p className="font-mono text-zinc-600 break-all">{record.patientWallet}</p>
+                  <p className="text-zinc-400">Registry: {record.registryId}</p>
+                  <p className="text-zinc-400">Verified: {new Date(record.verifiedAt).toLocaleString()}</p>
                   <button
                     type="button"
                     onClick={() => applyVerifiedPatient(record)}
-                    className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200 hover:bg-zinc-700"
+                    className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
                   >
                     Use Patient Wallet
                   </button>
@@ -737,18 +737,18 @@ export default function DoctorConsole() {
             )}
           </div>
 
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3 max-h-[300px] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-zinc-200">Recent Filed Attestations</h3>
+          <div className="border border-zinc-100 p-4 space-y-3 max-h-[300px] overflow-y-auto">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Recent Filed Attestations</p>
             {records.length === 0 ? (
-              <p className="text-sm text-zinc-500">No records loaded.</p>
+              <p className="text-xs text-zinc-400">No records loaded.</p>
             ) : (
               records.map((record) => (
-                <div key={record.attestationId} className="p-3 rounded-xl border border-zinc-800 bg-zinc-950/50 text-xs space-y-1">
-                  <p className="font-mono text-zinc-300 break-all">{record.approvalCode}</p>
-                  <p className="text-zinc-500">Reference: {record.requestId}</p>
-                  <p className="text-zinc-500 break-all">Patient: {record.patientWallet}</p>
-                  <p className="text-zinc-500">{record.medicationCategory} · Qty {record.quantity}</p>
-                  <p className="text-zinc-600">{new Date(record.issuedAt).toLocaleString()}</p>
+                <div key={record.attestationId} className="border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1">
+                  <p className="font-mono text-zinc-600 break-all">{record.approvalCode}</p>
+                  <p className="text-zinc-400">Ref: {record.requestId}</p>
+                  <p className="text-zinc-400 break-all">Patient: {record.patientWallet}</p>
+                  <p className="text-zinc-400">{record.medicationCategory} · Qty {record.quantity}</p>
+                  <p className="text-zinc-400">{new Date(record.issuedAt).toLocaleString()}</p>
                 </div>
               ))
             )}

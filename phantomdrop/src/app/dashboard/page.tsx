@@ -144,103 +144,93 @@ export default function DashboardPage() {
   }, [patientWallet]);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 py-12 space-y-8">
-        <div className="flex items-center justify-between">
+
+      {/* Page header */}
+      <div className="border-b border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-10 flex items-end justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">My Orders</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              Live updates on Monad finality (~0.8s)
-            </p>
+            <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Patient portal</p>
+            <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">My Orders</h1>
           </div>
           <Link
             href="/order"
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-medium transition-colors"
+            className="px-6 py-3 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-colors"
           >
             + New Order
           </Link>
         </div>
+      </div>
 
+      <main className="max-w-6xl mx-auto px-6 py-12">
         {!patientWallet ? (
-          <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
-            <p className="text-sm text-zinc-400">
-              Connect your MetaMask wallet to see your orders.
-            </p>
+          <div className="border border-zinc-100 p-8 max-w-md space-y-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-2">Connect your wallet</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect MetaMask to view your order history and track deliveries.
+              </p>
+            </div>
             <button
               type="button"
               onClick={connectWallet}
               disabled={isConnecting}
-              className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+              className="px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
             >
-              {isConnecting ? "Connecting..." : "Connect MetaMask"}
+              {isConnecting ? "Connecting..." : "Connect MetaMask →"}
             </button>
             {error ? (
-              <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">
                 {error}
               </p>
             ) : null}
           </div>
-        ) : orders.length === 0 ? (
-          <div className="space-y-4">
-            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Connected Wallet</p>
-              <p className="text-xs font-mono text-zinc-300 break-all">{patientWallet}</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={connectWallet}
-                  disabled={isConnecting}
-                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-                >
-                  {isConnecting ? "Switching..." : "Switch Wallet"}
-                </button>
-                <button
-                  type="button"
-                  onClick={disconnectSession}
-                  className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:bg-zinc-800"
-                >
-                  Disconnect Session
-                </button>
-              </div>
-            </div>
-            <div className="text-center py-20 space-y-4">
-              <p className="text-4xl">📋</p>
-              <p className="text-zinc-500">No orders yet.</p>
-              <Link
-                href="/order"
-                className="inline-block px-6 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-medium transition-colors"
-              >
-                Place your first order
-              </Link>
-            </div>
-          </div>
         ) : (
-          <div className="space-y-4">
-            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Connected Wallet</p>
-              <p className="text-xs font-mono text-zinc-300 break-all">{patientWallet}</p>
-              <div className="flex flex-wrap gap-2">
+          <div className="space-y-6">
+            {/* Wallet strip */}
+            <div className="border border-zinc-100 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E100]" />
+                <span className="text-xs text-zinc-500 uppercase tracking-widest">Connected</span>
+                <span className="text-xs text-zinc-400 font-mono ml-2">{patientWallet.slice(0, 14)}...{patientWallet.slice(-6)}</span>
+              </div>
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={connectWallet}
                   disabled={isConnecting}
-                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
                 >
-                  {isConnecting ? "Switching..." : "Switch Wallet"}
+                  {isConnecting ? "..." : "Switch"}
                 </button>
                 <button
                   type="button"
                   onClick={disconnectSession}
-                  className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:bg-zinc-800"
+                  className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
                 >
-                  Disconnect Session
+                  Disconnect
                 </button>
               </div>
             </div>
-            {orders.map((order) => (
-              <OrderCard key={order.id} order={order} />
-            ))}
+
+            {orders.length === 0 ? (
+              <div className="border border-zinc-100 py-20 text-center space-y-4">
+                <p className="text-xs uppercase tracking-widest text-zinc-300">No orders yet</p>
+                <Link
+                  href="/order"
+                  className="inline-block px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-colors"
+                >
+                  Place your first order →
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>

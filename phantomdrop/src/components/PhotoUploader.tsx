@@ -43,22 +43,21 @@ export default function PhotoUploader({ onPhoto }: Props) {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => fileRef.current?.click()}
-        className="border-2 border-dashed border-zinc-700 rounded-2xl p-8 text-center cursor-pointer hover:border-purple-600 transition-colors group"
+        className="border border-dashed border-zinc-200 p-8 text-center cursor-pointer hover:border-zinc-900 transition-colors group"
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={preview}
             alt="Delivery"
-            className="max-h-48 mx-auto rounded-xl object-cover"
+            className="max-h-48 mx-auto object-cover"
           />
         ) : (
           <div className="space-y-2">
-            <div className="text-4xl">📸</div>
-            <p className="text-zinc-400 group-hover:text-white transition-colors">
+            <p className="text-xs text-zinc-400 group-hover:text-zinc-900 transition-colors uppercase tracking-widest">
               {loading ? "Processing..." : "Tap to take photo or drag & drop"}
             </p>
-            <p className="text-xs text-zinc-600">Photo of package at doorstep</p>
+            <p className="text-xs text-zinc-300 uppercase tracking-wide">Photo of package at doorstep</p>
           </div>
         )}
       </div>
@@ -78,7 +77,7 @@ export default function PhotoUploader({ onPhoto }: Props) {
             setPreview(null);
             if (fileRef.current) fileRef.current.value = "";
           }}
-          className="text-xs text-zinc-500 hover:text-white underline"
+          className="text-xs text-zinc-500 hover:text-zinc-900 underline uppercase tracking-wide"
         >
           Retake photo
         </button>

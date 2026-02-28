@@ -210,38 +210,38 @@ export default function OrderForm({ patientWallet }: Props) {
   }
 
   return (
-    <form onSubmit={placeEscrowOrder} className="space-y-5">
-      <div className="p-4 bg-gradient-to-br from-zinc-900/80 via-zinc-900/40 to-purple-950/20 border border-zinc-800 rounded-xl text-sm text-zinc-300 space-y-1.5">
-        <p className="font-medium text-white">Your wallet is recognized. Order in one flow.</p>
-        <p className="text-zinc-400">
-          We only show medications already approved by your doctor for this wallet. Select one, add drop-off, pay escrow on Monad (~{finalitySeconds}s finality).
+    <form onSubmit={placeEscrowOrder} className="space-y-6">
+      <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 space-y-1">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Wallet recognized</p>
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          Only medications already approved by your doctor for this wallet are shown. Select one, add a drop-off location, then pay escrow on Monad (~{finalitySeconds}s finality).
         </p>
       </div>
 
-      <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-700 space-y-3">
+      <div className="border border-zinc-100 space-y-4 p-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-zinc-200">Approved Medications</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Approved Medications</p>
           <button
             type="button"
             onClick={() => void loadApprovedMedications()}
             disabled={isLoadingApprovals}
-            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg text-xs text-zinc-200 border border-zinc-700"
+            className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
           >
             {isLoadingApprovals ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
         {isLoadingApprovals ? (
-          <p className="text-sm text-zinc-500">Loading approvals...</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">Loading approvals...</p>
         ) : approvals.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            No active doctor approvals found for this wallet yet.
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            No active doctor approvals found for this wallet yet. Contact your doctor to file an approval.
           </p>
         ) : (
           <select
             value={selectedApprovalCode}
             onChange={(e) => setSelectedApprovalCode(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white"
+            className="w-full bg-white border border-zinc-200 px-4 py-3 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors appearance-none"
           >
             {approvals.map((item) => (
               <option key={item.approvalCode} value={item.approvalCode}>
@@ -252,41 +252,41 @@ export default function OrderForm({ patientWallet }: Props) {
         )}
 
         {selectedApproval ? (
-          <div className="p-3 bg-green-900/20 rounded-xl border border-green-700/50 text-xs space-y-1">
-            <p className="text-green-300 font-medium">Selected doctor approval</p>
-            <p className="text-zinc-300">Code: <span className="font-mono">{selectedApproval.approvalCode}</span></p>
-            <p className="text-zinc-400">Medication: {selectedApproval.medicationCategory}</p>
-            <p className="text-zinc-400">Quantity: {selectedApproval.quantity}</p>
-            <p className="text-zinc-500">Valid until: {new Date(selectedApproval.validUntilIso).toLocaleString()}</p>
+          <div className="border border-green-200 bg-green-50 px-4 py-3 space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-green-700">Doctor approval active</p>
+            <p className="text-xs text-zinc-600">Code: <span className="font-mono">{selectedApproval.approvalCode}</span></p>
+            <p className="text-xs text-zinc-500">Medication: {selectedApproval.medicationCategory}</p>
+            <p className="text-xs text-zinc-500">Quantity: {selectedApproval.quantity}</p>
+            <p className="text-xs text-zinc-400">Valid until: {new Date(selectedApproval.validUntilIso).toLocaleString()}</p>
           </div>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-zinc-300">Delivery location</label>
+        <label className="block text-xs font-bold uppercase tracking-widest text-zinc-900">Delivery location</label>
         <input
           type="text"
           value={dropLocation}
           onChange={(e) => setDropLocation(e.target.value)}
           placeholder="123 Main St, Apt 4B"
-          className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 transition-colors"
+          className="w-full bg-white border border-zinc-200 px-4 py-3 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
           required
         />
       </div>
 
-      <div className="p-4 bg-zinc-900 rounded-xl border border-zinc-700 flex items-center justify-between">
-        <span className="text-sm text-zinc-400">Escrow payment</span>
-        <span className="font-semibold text-white">{feeDisplay} {TOKEN_SYMBOL}</span>
+      <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 flex items-center justify-between">
+        <span className="text-xs uppercase tracking-widest text-zinc-500">Escrow payment</span>
+        <span className="text-xs font-bold text-zinc-900">{feeDisplay} {TOKEN_SYMBOL}</span>
       </div>
 
       {error ? (
-        <p className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 px-4 py-2 rounded-lg">{error}</p>
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">{error}</p>
       ) : null}
 
       <button
         type="submit"
         disabled={isPlacingOrder || approvals.length === 0 || !selectedApproval}
-        className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-white transition-colors text-base"
+        className="w-full py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isPlacingOrder ? "Placing order..." : `Place escrow order — ${feeDisplay} ${TOKEN_SYMBOL}`}
       </button>

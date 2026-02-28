@@ -157,77 +157,89 @@ export default function CourierPage() {
   }, [courierWallet]);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 py-12 space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Courier Dashboard</h1>
-          <p className="text-zinc-400 text-sm mt-1">
+
+      {/* Page header */}
+      <div className="border-b border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Courier portal</p>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">Courier Dashboard</h1>
+          <p className="text-xs text-zinc-400 mt-1 uppercase tracking-wide">
             Deliver anonymously on Monad. Get settled in {COURIER_PAYOUT_SYMBOL}.
           </p>
         </div>
+      </div>
 
+      <main className="max-w-6xl mx-auto px-6 py-12 space-y-6">
         {!courierWallet ? (
-          <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
-            <p className="text-sm text-zinc-400">
-              Connect your MetaMask wallet to see available deliveries and receive payout settlements.
-            </p>
+          <div className="border border-zinc-100 p-8 max-w-md space-y-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-2">Connect your wallet</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect MetaMask to see available deliveries and receive payout settlements.
+              </p>
+            </div>
             <button
               type="button"
               onClick={connectWallet}
               disabled={isConnecting}
-              className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+              className="px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
             >
-              {isConnecting ? "Connecting..." : "Connect MetaMask"}
+              {isConnecting ? "Connecting..." : "Connect MetaMask →"}
             </button>
             {error ? (
-              <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">
                 {error}
               </p>
             ) : null}
           </div>
         ) : (
           <>
-            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Courier Wallet</p>
-              <p className="text-xs font-mono text-zinc-300 break-all">{courierWallet}</p>
-              <div className="flex flex-wrap gap-2">
+            {/* Wallet strip */}
+            <div className="border border-zinc-100 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E100]" />
+                <span className="text-xs text-zinc-500 uppercase tracking-widest">Connected</span>
+                <span className="text-xs text-zinc-400 font-mono ml-2">{courierWallet.slice(0, 14)}...{courierWallet.slice(-6)}</span>
+              </div>
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={connectWallet}
                   disabled={isConnecting}
-                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
                 >
-                  {isConnecting ? "Switching..." : "Switch Wallet"}
+                  {isConnecting ? "..." : "Switch"}
                 </button>
                 <button
                   type="button"
                   onClick={disconnectSession}
-                  className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:bg-zinc-800"
+                  className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
                 >
-                  Disconnect Session
+                  Disconnect
                 </button>
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+            <div className="flex border border-zinc-100">
               <button
                 onClick={() => setTab("available")}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest transition-colors ${
                   tab === "available"
-                    ? "bg-purple-600 text-white"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-400 hover:text-zinc-900"
                 }`}
               >
                 Available ({available.length})
               </button>
               <button
                 onClick={() => setTab("mine")}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest border-l border-zinc-100 transition-colors ${
                   tab === "mine"
-                    ? "bg-purple-600 text-white"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-400 hover:text-zinc-900"
                 }`}
               >
                 My Deliveries ({myJobs.length})
@@ -236,12 +248,11 @@ export default function CourierPage() {
 
             {/* Available deliveries */}
             {tab === "available" && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {available.length === 0 ? (
-                  <div className="text-center py-16 space-y-3">
-                    <p className="text-4xl">🏙️</p>
-                    <p className="text-zinc-500">No deliveries available right now.</p>
-                    <p className="text-xs text-zinc-600">Orders appear here once funded by patients.</p>
+                  <div className="border border-zinc-100 py-20 text-center space-y-3">
+                    <p className="text-xs uppercase tracking-widest text-zinc-300">No deliveries available</p>
+                    <p className="text-xs text-zinc-400">Orders appear here once funded by patients.</p>
                   </div>
                 ) : (
                   available.map((order) => (
@@ -262,25 +273,24 @@ export default function CourierPage() {
 
             {/* My deliveries */}
             {tab === "mine" && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {myJobs.length === 0 ? (
-                  <div className="text-center py-16 space-y-3">
-                    <p className="text-4xl">📭</p>
-                    <p className="text-zinc-500">No accepted deliveries yet.</p>
+                  <div className="border border-zinc-100 py-20 text-center">
+                    <p className="text-xs uppercase tracking-widest text-zinc-300">No accepted deliveries yet</p>
                   </div>
                 ) : (
                   myJobs.map((order) => (
                     <div
                       key={order.id}
-                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4"
+                      className="border border-zinc-100 p-5 space-y-4"
                     >
                       <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-mono text-xs text-zinc-500">{order.id}</p>
-                          <p className="text-white font-medium mt-0.5">
-                            📍 {order.dropLocation}
+                        <div className="space-y-1">
+                          <p className="font-mono text-xs text-zinc-400">{order.id}</p>
+                          <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">
+                            {order.dropLocation}
                           </p>
-                          <p className="text-xs text-zinc-500 mt-0.5">
+                          <p className="text-xs text-zinc-400">
                             Payout:{" "}
                             {formatPayoutAmount(
                               order.payoutAmount || quoteCourierPayoutUsdc(order.amount).outputAmountBaseUnits,
@@ -290,12 +300,12 @@ export default function CourierPage() {
                           </p>
                         </div>
                         <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          className={`text-[10px] px-2 py-0.5 uppercase tracking-widest font-bold border ${
                             order.status === "paid"
-                              ? "bg-purple-900/60 text-purple-300"
+                              ? "border-[#00E100]/40 text-[#00E100] bg-green-50"
                               : order.status === "delivered"
-                              ? "bg-green-900/60 text-green-300"
-                              : "bg-amber-900/60 text-amber-300"
+                              ? "border-green-200 text-green-600 bg-green-50"
+                              : "border-amber-200 text-amber-600 bg-amber-50"
                           }`}
                         >
                           {order.status.replace("_", " ")}
@@ -306,7 +316,7 @@ export default function CourierPage() {
                         <>
                           {activeVerify === order.id ? (
                             <div className="space-y-3">
-                              <p className="text-sm font-medium text-zinc-300">
+                              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">
                                 Upload delivery photo
                               </p>
                               <DeliveryVerifier
@@ -321,17 +331,17 @@ export default function CourierPage() {
                           ) : (
                             <button
                               onClick={() => setActiveVerify(order.id)}
-                              className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-xl font-semibold text-white transition-colors"
+                              className="w-full py-3 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-colors"
                             >
-                              📸 Mark as Delivered
+                              Mark as Delivered →
                             </button>
                           )}
                         </>
                       )}
 
                       {order.status === "paid" && (
-                        <div className="p-3 bg-green-900/20 border border-green-800/40 rounded-xl text-sm text-green-400">
-                          ✅ Settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                        <div className="border border-green-200 bg-green-50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-green-700">
+                          Settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
                         </div>
                       )}
                     </div>

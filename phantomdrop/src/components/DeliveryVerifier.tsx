@@ -82,18 +82,17 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
     const order = getOrderById(orderId);
     return (
       <div className="space-y-4 text-center py-8">
-        <div className="text-6xl animate-bounce">✅</div>
-        <h3 className="text-xl font-bold text-green-400">Delivery Confirmed!</h3>
-        <p className="text-zinc-400">
-          Payment settled to courier wallet in {order?.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}.
+        <p className="text-xs font-bold uppercase tracking-widest text-[#00E100]">Delivery Confirmed</p>
+        <p className="text-xs text-zinc-500 uppercase tracking-wide">
+          Payment settled in {order?.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}.
         </p>
         {order?.payoutAmount ? (
-          <p className="text-sm text-zinc-300">
+          <p className="text-xs font-bold text-zinc-900">
             {formatPayoutAmount(order.payoutAmount, 2)} {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
           </p>
         ) : null}
         {order?.payoutTxHash && (
-          <p className="font-mono text-xs text-zinc-500 break-all">{order.payoutTxHash}</p>
+          <p className="font-mono text-xs text-zinc-400 break-all">{order.payoutTxHash}</p>
         )}
       </div>
     );
@@ -107,7 +106,7 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
         <button
           onClick={handleVerify}
           disabled={!courierWallet}
-          className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl font-semibold text-white transition-colors"
+          className="w-full py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
         >
           Verify Delivery with AI
         </button>
@@ -115,30 +114,28 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
 
       {state === "verifying" && (
         <div className="text-center py-4 space-y-2">
-          <div className="text-3xl animate-spin inline-block">🔍</div>
-          <p className="text-zinc-400">AI analyzing delivery photo...</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">AI analyzing delivery photo...</p>
         </div>
       )}
 
       {state === "swapping" && (
         <div className="text-center py-4 space-y-2">
-          <div className="text-3xl animate-pulse">💸</div>
-          <p className="text-zinc-400">Swapping escrow value to USDC and settling payout...</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">Settling payout to USDC...</p>
         </div>
       )}
 
       {state === "rejected" && (
-        <div className="p-4 bg-red-900/20 border border-red-800/40 rounded-xl space-y-2">
-          <p className="text-red-400 font-semibold">❌ Package not detected</p>
-          <p className="text-sm text-zinc-400">
+        <div className="border border-red-200 bg-red-50 px-4 py-3 space-y-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-red-700">Package not detected</p>
+          <p className="text-xs text-zinc-500">
             AI could not confirm a package at the doorstep. Please retake the photo.
           </p>
         </div>
       )}
 
       {state === "error" && (
-        <div className="p-4 bg-red-900/20 border border-red-800/40 rounded-xl">
-          <p className="text-red-400 text-sm">{errorMsg}</p>
+        <div className="border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-xs text-red-600 uppercase tracking-wide">{errorMsg}</p>
         </div>
       )}
     </div>

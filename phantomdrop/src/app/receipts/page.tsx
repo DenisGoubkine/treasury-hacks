@@ -109,43 +109,52 @@ export default function ReceiptsPage() {
   }, [wallet]);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 py-12 space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white">ZK Receipts</h1>
-          <p className="text-zinc-400 text-sm">
+
+      {/* Page header */}
+      <div className="border-b border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Patient portal</p>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">ZK Receipts</h1>
+          <p className="text-xs text-zinc-400 mt-1 uppercase tracking-wide">
             Proof of payment without revealing parties or amounts on-chain.
           </p>
         </div>
+      </div>
 
+      <main className="max-w-6xl mx-auto px-6 py-12 space-y-6">
         {!wallet ? (
-          <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
-            <p className="text-sm text-zinc-400">Connect your wallet to view receipts.</p>
+          <div className="border border-zinc-100 p-8 max-w-md space-y-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-2">Connect your wallet</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect MetaMask to view your ZK receipts for completed transactions.
+              </p>
+            </div>
             <button
               type="button"
               onClick={connectWallet}
               disabled={isConnecting}
-              className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+              className="px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
             >
-              {isConnecting ? "Connecting..." : "Connect MetaMask"}
+              {isConnecting ? "Connecting..." : "Connect MetaMask →"}
             </button>
             {error ? (
-              <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">
                 {error}
               </p>
             ) : null}
           </div>
         ) : receipts.length === 0 ? (
-          <div className="text-center py-20 space-y-3">
-            <p className="text-4xl">🧾</p>
-            <p className="text-zinc-500">No completed transactions yet.</p>
+          <div className="border border-zinc-100 py-20 text-center">
+            <p className="text-xs uppercase tracking-widest text-zinc-300">No completed transactions yet</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="p-4 bg-zinc-900/50 border border-purple-900/30 rounded-xl text-xs text-zinc-400 space-y-1">
-              <p className="text-purple-400 font-medium">🔒 Privacy Note</p>
-              <p>
+            <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 space-y-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Privacy Note</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 These receipts prove payments occurred without revealing parties, amounts, or
                 medication details on-chain. Download and store securely.
               </p>

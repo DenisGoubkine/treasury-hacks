@@ -131,66 +131,109 @@ export default function OrderPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 py-12 space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white">Order Approved Medication</h1>
-          <p className="text-zinc-400 text-sm">
-            Login with MetaMask, choose from doctor-approved medications, then place escrow.
-          </p>
-        </div>
 
-        {!patientWallet ? (
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 space-y-4">
-            <p className="text-sm text-zinc-300">
-              Connect your MetaMask wallet to load your profile and approved medications.
-            </p>
-            <button
-              type="button"
-              onClick={connectWallet}
-              disabled={isConnecting}
-              className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
-            >
-              {isConnecting ? "Connecting..." : "Connect MetaMask"}
-            </button>
-            <p className="text-xs text-zinc-500">
-              Wallet signature is used for authentication only. No extra funding step required.
-            </p>
-            {error ? (
-              <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">
-                {error}
-              </p>
-            ) : null}
+      {/* Page header */}
+      <div className="border-b border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Patient portal</p>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">Order Approved Medication</h1>
+        </div>
+      </div>
+
+      <main className="max-w-6xl mx-auto px-6 py-12">
+        <div className="grid md:grid-cols-3 gap-12">
+
+          {/* Left: steps guide */}
+          <div className="space-y-8">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-zinc-400 mb-6">How it works</p>
+              <div className="space-y-6">
+                {[
+                  { n: "01", title: "Connect wallet", desc: "Authenticate with MetaMask on Monad Testnet." },
+                  { n: "02", title: "Select medication", desc: "Choose from medications your doctor has pre-approved." },
+                  { n: "03", title: "Pay escrow", desc: "0.001 MON held until confirmed delivery." },
+                ].map(({ n, title, desc }) => (
+                  <div key={n} className="flex gap-4">
+                    <span className="text-xs text-[#00E100] uppercase tracking-widest shrink-0 pt-0.5">{n}</span>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-1">{title}</p>
+                      <p className="text-xs text-zinc-400 leading-relaxed">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-100 pt-6">
+              <p className="text-xs uppercase tracking-widest text-zinc-400 mb-3">Privacy</p>
+              <p className="text-xs text-zinc-400 leading-relaxed">Your identity is never stored. Wallet used for authentication only. All payment amounts are ZK-shielded on-chain.</p>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Connected Wallet</p>
-              <p className="text-xs font-mono text-zinc-300 break-all">{patientWallet}</p>
-              <div className="flex flex-wrap gap-2">
+
+          {/* Right: connect + form */}
+          <div className="md:col-span-2">
+            {!patientWallet ? (
+              <div className="border border-zinc-100 p-8 space-y-6">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-2">Connect MetaMask</p>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Connect your wallet to load your approved medications. We&apos;ll switch you to Monad Testnet automatically.
+                  </p>
+                </div>
+
                 <button
                   type="button"
                   onClick={connectWallet}
                   disabled={isConnecting}
-                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  className="px-8 py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
                 >
-                  {isConnecting ? "Switching..." : "Switch Wallet"}
+                  {isConnecting ? "Connecting..." : "Connect MetaMask →"}
                 </button>
-                <button
-                  type="button"
-                  onClick={disconnectSession}
-                  className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:bg-zinc-800"
-                >
-                  Disconnect Session
-                </button>
+
+                {error ? (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 uppercase tracking-wide">
+                    {error}
+                  </p>
+                ) : null}
               </div>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-              <OrderForm patientWallet={patientWallet} />
-            </div>
+            ) : (
+              <div className="space-y-0">
+                {/* Wallet banner */}
+                <div className="border border-zinc-100 border-b-0 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00E100]" />
+                    <span className="text-xs text-zinc-500 uppercase tracking-widest">Connected</span>
+                    <span className="text-xs text-zinc-400 font-mono ml-2">{patientWallet.slice(0, 14)}...{patientWallet.slice(-6)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={connectWallet}
+                      disabled={isConnecting}
+                      className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 uppercase tracking-widest transition-colors"
+                    >
+                      {isConnecting ? "..." : "Switch"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={disconnectSession}
+                      className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+
+                {/* Order form */}
+                <div className="border border-zinc-100 p-8">
+                  <OrderForm patientWallet={patientWallet} />
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

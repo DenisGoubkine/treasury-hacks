@@ -61,52 +61,52 @@ export default function Receipt({ order }: Props) {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+    <div className="border border-zinc-100 p-5 space-y-4">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="font-mono text-xs text-zinc-500">{order.id}</p>
-          <p className="text-white font-medium mt-0.5">{order.medicationType}</p>
-          <p className="text-xs text-zinc-500">
+        <div className="space-y-1">
+          <p className="font-mono text-xs text-zinc-400">{order.id}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">{order.medicationType}</p>
+          <p className="text-xs text-zinc-400">
             {new Date(order.paidAt || order.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <span className="text-xs px-2 py-1 bg-purple-900/60 text-purple-300 rounded-full font-medium">
-          ✅ Paid
+        <span className="text-[10px] px-2 py-0.5 border border-[#00E100]/40 text-[#00E100] bg-green-50 uppercase tracking-widest font-bold">
+          Paid
         </span>
       </div>
 
-      <div className="p-3 bg-zinc-800 rounded-xl font-mono text-xs space-y-1.5 text-zinc-400">
+      <div className="border border-zinc-100 bg-zinc-50 p-3 font-mono text-xs space-y-1.5">
         <div className="flex justify-between">
-          <span>Amount</span>
+          <span className="text-zinc-400 uppercase tracking-wide">Amount</span>
           <span className="text-zinc-500 italic">ZK shielded</span>
         </div>
         <div className="flex justify-between">
-          <span>Parties</span>
+          <span className="text-zinc-400 uppercase tracking-wide">Parties</span>
           <span className="text-zinc-500 italic">ZK shielded</span>
         </div>
         <div className="flex justify-between">
-          <span>ZK Proof</span>
-          <span className="text-purple-400">0x{proofHash}...</span>
+          <span className="text-zinc-400 uppercase tracking-wide">ZK Proof</span>
+          <span className="text-[#00E100]">0x{proofHash}...</span>
         </div>
         {order.complianceAttestationId && (
           <div className="flex justify-between">
-            <span>Compliance</span>
-            <span className="text-green-400">{order.complianceAttestationId.slice(0, 16)}...</span>
+            <span className="text-zinc-400 uppercase tracking-wide">Compliance</span>
+            <span className="text-[#00E100]">{order.complianceAttestationId.slice(0, 16)}...</span>
           </div>
         )}
         {order.complianceApprovalCode && (
           <div className="flex justify-between">
-            <span>Approval</span>
-            <span className="text-zinc-300">{order.complianceApprovalCode}</span>
+            <span className="text-zinc-400 uppercase tracking-wide">Approval</span>
+            <span className="text-zinc-600">{order.complianceApprovalCode}</span>
           </div>
         )}
       </div>
 
       <button
         onClick={download}
-        className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl text-sm font-medium transition-colors border border-zinc-700"
+        className="w-full py-2.5 border border-zinc-200 text-xs text-zinc-600 uppercase tracking-widest hover:border-zinc-900 hover:text-zinc-900 transition-colors"
       >
-        ↓ Download Receipt
+        Download Receipt →
       </button>
     </div>
   );

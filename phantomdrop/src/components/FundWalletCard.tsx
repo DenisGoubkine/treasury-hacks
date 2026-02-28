@@ -189,20 +189,21 @@ export default function FundWalletCard() {
   }
 
   return (
-    <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-3">
-      <h3 className="text-white font-semibold">Fund Unlink Private Balance</h3>
-      <p className="text-xs text-zinc-400">
-        MetaMask balance and Unlink private balance are different. This moves {TOKEN_SYMBOL} from MetaMask into
-        your private Unlink balance used by this app.
-      </p>
-
-      <div className="text-xs text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1">
-        <p>1. MetaMask holds your normal on-chain funds.</p>
-        <p>2. Unlink holds encrypted private funds.</p>
-        <p>3. You must deposit once before private sends can work.</p>
+    <div className="border border-zinc-100 p-5 space-y-4">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-1">Fund Private Balance</p>
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          MetaMask and Unlink private balances are separate. Move {TOKEN_SYMBOL} from MetaMask into your private Unlink balance used by this app.
+        </p>
       </div>
 
-      <div className="text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-xl p-3 font-mono">
+      <div className="border border-zinc-100 bg-zinc-50 px-4 py-3 space-y-1">
+        <p className="text-xs text-zinc-500">1. MetaMask holds your normal on-chain funds.</p>
+        <p className="text-xs text-zinc-500">2. Unlink holds encrypted private funds.</p>
+        <p className="text-xs text-zinc-500">3. Deposit once before private sends can work.</p>
+      </div>
+
+      <div className="border border-zinc-100 bg-zinc-50 px-4 py-3 font-mono text-xs text-zinc-600">
         Private balance: {balanceDisplay} {TOKEN_SYMBOL}
       </div>
 
@@ -212,12 +213,12 @@ export default function FundWalletCard() {
           value={amountInput}
           onChange={(e) => setAmountInput(e.target.value)}
           placeholder={`Amount in ${TOKEN_SYMBOL}`}
-          className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600"
+          className="flex-1 bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
         />
         <button
           onClick={handleFund}
           disabled={isPending || !activeAccount}
-          className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl font-semibold text-white"
+          className="px-4 py-2.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 transition-colors"
         >
           {isPending ? "Funding..." : "Fund"}
         </button>
@@ -226,16 +227,16 @@ export default function FundWalletCard() {
       <button
         onClick={handleRefreshBalance}
         disabled={!activeAccount || isPending}
-        className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-xl text-sm font-semibold text-zinc-200 border border-zinc-700"
+        className="w-full py-2.5 border border-zinc-200 text-xs text-zinc-500 uppercase tracking-widest hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-50 transition-colors"
       >
         Refresh Balance
       </button>
 
-      {status ? <p className="text-xs text-emerald-400">{status}</p> : null}
-      {error ? <p className="text-xs text-red-400">{error}</p> : null}
+      {status ? <p className="text-xs text-[#00E100] uppercase tracking-wide">{status}</p> : null}
+      {error ? <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 uppercase tracking-wide">{error}</p> : null}
       {lastTxHash ? (
         <a
-          className="block text-xs text-zinc-400 hover:text-zinc-200 font-mono break-all"
+          className="block text-xs text-zinc-400 hover:text-zinc-700 font-mono break-all"
           target="_blank"
           rel="noreferrer"
           href={`${MONAD_TESTNET_EXPLORER_URL}/tx/${lastTxHash}`}

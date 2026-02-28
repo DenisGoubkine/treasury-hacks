@@ -5,16 +5,20 @@ import DoctorConsole from "@/components/DoctorConsole";
 
 export default function DoctorPage() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-12 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white">Doctor Attestation Console</h1>
-          <p className="text-zinc-400 text-sm max-w-3xl">
-            Clean 2-step flow: register verified patient, then file attestation. Wallet-sign security is built in.
+
+      <div className="border-b border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Provider portal</p>
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">Doctor Attestation Console</h1>
+          <p className="text-xs text-zinc-400 mt-2 max-w-2xl leading-relaxed uppercase tracking-wide">
+            Two-step flow — register verified patient, then file attestation. Wallet-sign security built in.
           </p>
         </div>
+      </div>
 
+      <main className="max-w-6xl mx-auto px-6 py-12">
         <DoctorConsole />
       </main>
     </div>
