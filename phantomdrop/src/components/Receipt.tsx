@@ -1,7 +1,7 @@
 "use client";
 
 import { Order } from "@/types";
-import { TOKEN_SYMBOL } from "@/lib/constants";
+import { COURIER_PAYOUT_SYMBOL, TOKEN_SYMBOL } from "@/lib/constants";
 
 interface Props {
   order: Order;
@@ -27,7 +27,7 @@ export default function Receipt({ order }: Props) {
       `Order ID:     ${order.id}`,
       `Date:         ${new Date(order.paidAt || order.createdAt).toISOString()}`,
       `Amount:       [PRIVATE — ZK shielded]`,
-      `Token:        ${TOKEN_SYMBOL}`,
+      `Token:        ${order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL || TOKEN_SYMBOL}`,
       `Network:      Monad Testnet`,
       "",
       `Patient:      [PRIVATE — ZK shielded]`,

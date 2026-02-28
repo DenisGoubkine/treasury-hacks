@@ -24,6 +24,17 @@ export const TOKEN_DECIMALS = Number(
   process.env.NEXT_PUBLIC_TOKEN_DECIMALS || (TOKEN_IS_NATIVE ? "18" : "6")
 );
 
+const parsedCourierSwapRate = Number(process.env.NEXT_PUBLIC_COURIER_USDC_SWAP_RATE || "1");
+export const COURIER_USDC_SWAP_RATE =
+  Number.isFinite(parsedCourierSwapRate) && parsedCourierSwapRate > 0
+    ? parsedCourierSwapRate
+    : 1;
+export const COURIER_PAYOUT_SYMBOL =
+  process.env.NEXT_PUBLIC_COURIER_PAYOUT_SYMBOL || "USDC";
+export const COURIER_PAYOUT_DECIMALS = Number(
+  process.env.NEXT_PUBLIC_COURIER_PAYOUT_DECIMALS || "6"
+);
+
 // Delivery cost in base units for TOKEN_ADDRESS.
 export const DELIVERY_FEE = BigInt(process.env.NEXT_PUBLIC_DELIVERY_FEE || "5000000");
 export const REQUEST_SIGNAL_AMOUNT = BigInt(process.env.NEXT_PUBLIC_REQUEST_SIGNAL_AMOUNT || "1");

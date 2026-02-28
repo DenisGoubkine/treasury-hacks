@@ -18,10 +18,6 @@ import {
   PatientApprovedMedication,
   PatientApprovedMedicationsResponse,
 } from "@/lib/compliance/types";
-import {
-  buildPatientWorkspaceAuthMessage,
-  PATIENT_WORKSPACE_AUTH_VERSION,
-} from "@/lib/compliance/patientWorkspaceAuth";
 import { formatTokenAmount } from "@/lib/tokenFormat";
 import { generateOrderId, saveOrder } from "@/lib/store";
 import { Order } from "@/types";
@@ -95,47 +91,10 @@ export default function OrderForm({ patientWallet }: Props) {
     setIsLoadingApprovals(true);
 
     try {
-      const provider = getEthereumProvider();
-      await ensureMonadTestnet(provider);
-
       const normalizedWallet = getAddress(patientWallet);
-      const requestTs = Date.now().toString();
-      const requestNonce = crypto.randomUUID().replaceAll("-", "");
-      const action = "list_approved_medications";
-      const resource = normalizedWallet;
-
-      const message = buildPatientWorkspaceAuthMessage({
-        patientWallet: normalizedWallet,
-        monadWallet: normalizedWallet,
-        action,
-        resource,
-        requestTs,
-        requestNonce,
-      });
-
-      const signature = (await provider.request({
-        method: "personal_sign",
-        params: [message, normalizedWallet],
-      })) as string;
-
-      const response = await fetch("/api/compliance/patient/approvals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          patientWallet: normalizedWallet,
-          walletProof: {
-            version: PATIENT_WORKSPACE_AUTH_VERSION,
-            monadWallet: normalizedWallet,
-            action,
-            resource,
-            requestTs,
-            requestNonce,
-            signature,
-          },
-        }),
-      });
+      const response = await fetch(
+        `/api/compliance/patient/approvals?patientWallet=${encodeURIComponent(normalizedWallet)}`
+      );
 
       const body = (await response.json()) as PatientApprovedMedicationsResponse;
       if (!response.ok || !body.ok) {
@@ -197,7 +156,10 @@ export default function OrderForm({ patientWallet }: Props) {
       const provider = getEthereumProvider();
       await ensureMonadTestnet(provider);
 
-      const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      let accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+      if (!accounts?.[0]) {
+        accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      }
       const account = accounts?.[0];
       if (!account) {
         throw new Error("No MetaMask account selected.");

@@ -1,33 +1,157 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useUnlink } from "@unlink-xyz/react";
+import { useCallback, useEffect, useState } from "react";
+import { getAddress } from "ethers";
 import Navbar from "@/components/Navbar";
 import CourierJobCard from "@/components/CourierJobCard";
-import WalletConnect from "@/components/WalletConnect";
 import DeliveryVerifier from "@/components/DeliveryVerifier";
 import { getAvailableOrders, getOrdersByCourier } from "@/lib/store";
-import { MONAD_FINALITY_MS, TOKEN_SYMBOL } from "@/lib/constants";
-import { formatTokenAmount } from "@/lib/tokenFormat";
+import {
+  COURIER_PAYOUT_SYMBOL,
+  MONAD_CHAIN_ID_HEX,
+  MONAD_FINALITY_MS,
+  MONAD_TESTNET_EXPLORER_URL,
+  MONAD_TESTNET_RPC_URL,
+} from "@/lib/constants";
+import { formatPayoutAmount, quoteCourierPayoutUsdc } from "@/lib/courierSwap";
 import { Order } from "@/types";
 
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
+  on?: (event: string, listener: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+};
+
+function getEthereumProvider(): Eip1193Provider {
+  const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
+  if (!provider) {
+    throw new Error("MetaMask not detected. Install MetaMask to continue.");
+  }
+  return provider;
+}
+
+async function ensureMonadTestnet(provider: Eip1193Provider) {
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: MONAD_CHAIN_ID_HEX }],
+    });
+  } catch (error) {
+    const code = Number((error as { code?: number })?.code ?? 0);
+    if (code !== 4902) {
+      throw error;
+    }
+
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: MONAD_CHAIN_ID_HEX,
+          chainName: "Monad Testnet",
+          nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+          rpcUrls: [MONAD_TESTNET_RPC_URL],
+          blockExplorerUrls: [MONAD_TESTNET_EXPLORER_URL],
+        },
+      ],
+    });
+  }
+}
+
 export default function CourierPage() {
-  const { activeAccount, ready } = useUnlink();
+  const [courierWallet, setCourierWallet] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState("");
   const [tab, setTab] = useState<"available" | "mine">("available");
   const [available, setAvailable] = useState<Order[]>([]);
   const [myJobs, setMyJobs] = useState<Order[]>([]);
   const [activeVerify, setActiveVerify] = useState<string | null>(null);
 
+  const connectWallet = useCallback(async () => {
+    setError("");
+    setIsConnecting(true);
+    try {
+      const provider = getEthereumProvider();
+      await ensureMonadTestnet(provider);
+      const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      const account = accounts?.[0];
+      if (!account) {
+        throw new Error("No MetaMask account selected.");
+      }
+      setCourierWallet(getAddress(account));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not connect MetaMask";
+      setError(msg);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, []);
+
+  const disconnectSession = useCallback(() => {
+    setCourierWallet("");
+    setAvailable([]);
+    setMyJobs([]);
+    setError("");
+  }, []);
+
   useEffect(() => {
-    if (!activeAccount) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const provider = getEthereumProvider();
+        const accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+        if (cancelled) return;
+        if (accounts?.[0]) {
+          setCourierWallet(getAddress(accounts[0]));
+        }
+      } catch {
+        // Ignore provider errors during initial detection.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
+    if (!provider?.on || !provider.removeListener) {
+      return;
+    }
+
+    const onAccountsChanged = (...args: unknown[]) => {
+      const accounts = (args?.[0] as string[]) || [];
+      if (!accounts[0]) {
+        setCourierWallet("");
+        setAvailable([]);
+        setMyJobs([]);
+        return;
+      }
+      try {
+        setCourierWallet(getAddress(accounts[0]));
+      } catch {
+        setCourierWallet(accounts[0]);
+      }
+    };
+
+    provider.on("accountsChanged", onAccountsChanged);
+    return () => {
+      provider.removeListener?.("accountsChanged", onAccountsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!courierWallet) return;
     const refresh = () => {
       setAvailable(getAvailableOrders());
-      setMyJobs(getOrdersByCourier(activeAccount.address));
+      setMyJobs(getOrdersByCourier(courierWallet));
     };
     refresh();
     const interval = setInterval(refresh, MONAD_FINALITY_MS);
     return () => clearInterval(interval);
-  }, [activeAccount]);
+  }, [courierWallet]);
 
   return (
     <div className="min-h-screen bg-black">
@@ -36,21 +160,53 @@ export default function CourierPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Courier Dashboard</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Deliver anonymously. Get paid automatically.
+            Deliver anonymously on Monad. Get settled in {COURIER_PAYOUT_SYMBOL}.
           </p>
         </div>
 
-        {!ready ? (
-          <div className="text-center py-16 text-zinc-500 animate-pulse">Initializing...</div>
-        ) : !activeAccount ? (
+        {!courierWallet ? (
           <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-3">
             <p className="text-sm text-zinc-400">
-              Connect your Unlink wallet to see available deliveries and receive payments.
+              Connect your MetaMask wallet to see available deliveries and receive payout settlements.
             </p>
-            <WalletConnect />
+            <button
+              type="button"
+              onClick={connectWallet}
+              disabled={isConnecting}
+              className="w-full md:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-sm font-semibold text-white"
+            >
+              {isConnecting ? "Connecting..." : "Connect MetaMask"}
+            </button>
+            {error ? (
+              <p className="text-sm text-red-300 bg-red-950/40 border border-red-900/40 p-3 rounded-xl">
+                {error}
+              </p>
+            ) : null}
           </div>
         ) : (
           <>
+            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Courier Wallet</p>
+              <p className="text-xs font-mono text-zinc-300 break-all">{courierWallet}</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={connectWallet}
+                  disabled={isConnecting}
+                  className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                >
+                  {isConnecting ? "Switching..." : "Switch Wallet"}
+                </button>
+                <button
+                  type="button"
+                  onClick={disconnectSession}
+                  className="px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:bg-zinc-800"
+                >
+                  Disconnect Session
+                </button>
+              </div>
+            </div>
+
             {/* Tabs */}
             <div className="flex gap-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
               <button
@@ -89,9 +245,10 @@ export default function CourierPage() {
                     <CourierJobCard
                       key={order.id}
                       order={order}
+                      courierWallet={courierWallet}
                       onAccepted={() => {
                         setAvailable(getAvailableOrders());
-                        setMyJobs(getOrdersByCourier(activeAccount.address));
+                        setMyJobs(getOrdersByCourier(courierWallet));
                         setTab("mine");
                       }}
                     />
@@ -121,7 +278,12 @@ export default function CourierPage() {
                             📍 {order.dropLocation}
                           </p>
                           <p className="text-xs text-zinc-500 mt-0.5">
-                            Payout: {formatTokenAmount(order.amount, 6)} {TOKEN_SYMBOL}
+                            Payout:{" "}
+                            {formatPayoutAmount(
+                              order.payoutAmount || quoteCourierPayoutUsdc(order.amount).outputAmountBaseUnits,
+                              2
+                            )}{" "}
+                            {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
                           </p>
                         </div>
                         <span
@@ -146,10 +308,10 @@ export default function CourierPage() {
                               </p>
                               <DeliveryVerifier
                                 orderId={order.id}
-                                courierWallet={activeAccount.address}
+                                courierWallet={courierWallet}
                                 onSuccess={() => {
                                   setActiveVerify(null);
-                                  setMyJobs(getOrdersByCourier(activeAccount.address));
+                                  setMyJobs(getOrdersByCourier(courierWallet));
                                 }}
                               />
                             </div>
@@ -166,7 +328,7 @@ export default function CourierPage() {
 
                       {order.status === "paid" && (
                         <div className="p-3 bg-green-900/20 border border-green-800/40 rounded-xl text-sm text-green-400">
-                          ✅ Payment received in your Unlink wallet
+                          ✅ Settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
                         </div>
                       )}
                     </div>

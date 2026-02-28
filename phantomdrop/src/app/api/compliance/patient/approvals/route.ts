@@ -6,6 +6,25 @@ import { getComplianceConfig } from "@/lib/server/compliance/config";
 import { verifyPatientWorkspaceAuth } from "@/lib/server/compliance/patientWorkspaceAuth";
 import { getPatientApprovedMedications } from "@/lib/server/compliance/service";
 
+export async function GET(request: NextRequest) {
+  const config = getComplianceConfig();
+  hashIp(request.headers.get("x-forwarded-for"), config.attestationSecret);
+
+  const patientWallet = request.nextUrl.searchParams.get("patientWallet")?.trim() || "";
+  if (!patientWallet) {
+    return NextResponse.json({ ok: false, error: "patientWallet query param required" }, { status: 400 });
+  }
+
+  const approvals = getPatientApprovedMedications(patientWallet);
+  const response: PatientApprovedMedicationsResponse = {
+    ok: true,
+    patientWallet,
+    approvals,
+  };
+
+  return NextResponse.json(response, { status: 200 });
+}
+
 export async function POST(request: NextRequest) {
   const config = getComplianceConfig();
   const ipHash = hashIp(request.headers.get("x-forwarded-for"), config.attestationSecret);

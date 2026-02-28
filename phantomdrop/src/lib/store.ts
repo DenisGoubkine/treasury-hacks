@@ -28,11 +28,13 @@ export function getOrderById(id: string): Order | undefined {
 }
 
 export function getOrdersByPatient(wallet: string): Order[] {
-  return getOrders().filter((o) => o.patientWallet === wallet);
+  const target = wallet.trim().toLowerCase();
+  return getOrders().filter((o) => o.patientWallet.trim().toLowerCase() === target);
 }
 
 export function getOrdersByCourier(wallet: string): Order[] {
-  return getOrders().filter((o) => o.courierWallet === wallet);
+  const target = wallet.trim().toLowerCase();
+  return getOrders().filter((o) => (o.courierWallet || "").trim().toLowerCase() === target);
 }
 
 export function getAvailableOrders(): Order[] {

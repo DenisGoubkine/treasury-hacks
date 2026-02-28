@@ -22,6 +22,10 @@ export interface Order {
   aiVerificationResult?: boolean;
   txHash?: string;
   payoutTxHash?: string;
+  payoutTokenSymbol?: string;
+  payoutAmount?: string; // base units for payout token (ex: USDC 6 decimals)
+  payoutSwapRate?: string; // input token to payout token swap rate
+  payoutSwapReference?: string;
   complianceAttestationId?: string;
   complianceApprovalCode?: string;
   compliancePatientToken?: string;

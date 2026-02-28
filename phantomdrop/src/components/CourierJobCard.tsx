@@ -1,26 +1,29 @@
 "use client";
 
 import { Order } from "@/types";
-import { useUnlink } from "@unlink-xyz/react";
 import { updateOrderStatus } from "@/lib/store";
-import { TOKEN_SYMBOL } from "@/lib/constants";
-import { formatTokenAmount } from "@/lib/tokenFormat";
+import { COURIER_PAYOUT_SYMBOL } from "@/lib/constants";
+import { formatPayoutAmount, quoteCourierPayoutUsdc } from "@/lib/courierSwap";
 
 interface Props {
   order: Order;
+  courierWallet: string;
   onAccepted: () => void;
 }
 
-export default function CourierJobCard({ order, onAccepted }: Props) {
-  const { activeAccount } = useUnlink();
-  const fee = formatTokenAmount(order.amount, 6);
+export default function CourierJobCard({ order, courierWallet, onAccepted }: Props) {
+  const payoutQuote = quoteCourierPayoutUsdc(order.amount);
+  const payoutDisplay = formatPayoutAmount(payoutQuote.outputAmountBaseUnits, 2);
 
   function handleAccept() {
-    if (!activeAccount) return;
+    if (!courierWallet) return;
     updateOrderStatus(order.id, {
       status: "in_transit",
-      courierWallet: activeAccount.address,
+      courierWallet,
       acceptedAt: Date.now(),
+      payoutTokenSymbol: COURIER_PAYOUT_SYMBOL,
+      payoutAmount: payoutQuote.outputAmountBaseUnits,
+      payoutSwapRate: payoutQuote.rate,
     });
     onAccepted();
   }
@@ -37,8 +40,10 @@ export default function CourierJobCard({ order, onAccepted }: Props) {
           <p className="text-xs text-zinc-500">Contents unknown · Sealed at pharmacy</p>
         </div>
         <div className="text-right">
-          <p className="text-green-400 font-bold text-lg">{fee} {TOKEN_SYMBOL}</p>
-          <p className="text-xs text-zinc-500">payout on delivery</p>
+          <p className="text-green-400 font-bold text-lg">
+            {payoutDisplay} {COURIER_PAYOUT_SYMBOL}
+          </p>
+          <p className="text-xs text-zinc-500">estimated payout on delivery</p>
         </div>
       </div>
 
@@ -64,7 +69,7 @@ export default function CourierJobCard({ order, onAccepted }: Props) {
 
       <button
         onClick={handleAccept}
-        disabled={!activeAccount}
+        disabled={!courierWallet}
         className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-white transition-colors"
       >
         Accept Delivery

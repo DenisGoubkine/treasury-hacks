@@ -218,7 +218,10 @@ export default function DoctorConsole() {
 
       const provider = getEthereumProvider();
       await ensureMonadTestnet(provider);
-      const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      let accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+      if (!accounts?.[0]) {
+        accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      }
       const account = accounts?.[0];
       if (!account) {
         throw new Error("No MetaMask account selected.");
@@ -257,13 +260,9 @@ export default function DoctorConsole() {
 
   const loadRecords = useCallback(async () => {
     if (!doctorWallet) return;
-    const authHeaders = await buildDoctorAuthHeaders("list_records", "doctor_workspace");
 
     const response = await fetch(
-      `/api/compliance/doctor/records?doctorWallet=${encodeURIComponent(doctorWallet)}`,
-      {
-        headers: authHeaders,
-      }
+      `/api/compliance/doctor/records?doctorWallet=${encodeURIComponent(doctorWallet)}`
     );
 
     const body = (await response.json()) as {
@@ -279,7 +278,7 @@ export default function DoctorConsole() {
 
     setRecords(body.records || []);
     setVerifiedPatients(body.verifiedPatients || []);
-  }, [doctorWallet, buildDoctorAuthHeaders]);
+  }, [doctorWallet]);
 
   const refreshWorkspace = useCallback(async () => {
     if (!doctorWallet) return;

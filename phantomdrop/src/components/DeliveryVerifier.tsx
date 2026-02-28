@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useUnlink, useSend } from "@unlink-xyz/react";
-import { DELIVERY_FEE, PLATFORM_UNLINK_ADDRESS, TOKEN_ADDRESS } from "@/lib/constants";
 import { updateOrderStatus, getOrderById } from "@/lib/store";
 import { verifyDelivery } from "@/lib/openai";
+import {
+  buildCourierSwapReference,
+  formatPayoutAmount,
+  quoteCourierPayoutUsdc,
+} from "@/lib/courierSwap";
+import { COURIER_PAYOUT_SYMBOL } from "@/lib/constants";
 import PhotoUploader from "./PhotoUploader";
 
 interface Props {
@@ -13,12 +17,9 @@ interface Props {
   onSuccess: (txHash?: string) => void;
 }
 
-type VerifyState = "idle" | "verifying" | "verified" | "rejected" | "releasing" | "done" | "error";
+type VerifyState = "idle" | "verifying" | "verified" | "rejected" | "swapping" | "done" | "error";
 
 export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: Props) {
-  const { activeAccount } = useUnlink();
-  const { send } = useSend();
-
   const [photo, setPhoto] = useState<{ base64: string; url: string } | null>(null);
   const [state, setState] = useState<VerifyState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -41,24 +42,26 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
       }
 
       updateOrderStatus(orderId, { aiVerificationResult: true, status: "delivered", deliveredAt: Date.now() });
-      setState("releasing");
+      setState("swapping");
 
-      // Release escrow: platform → courier
-      // NOTE: In production, this call would be made by the platform backend
-      // For the hackathon, the patient's connected wallet acts as the platform
-      const result = await send([
-        {
-          token: TOKEN_ADDRESS,
-          recipient: courierWallet,
-          amount: DELIVERY_FEE,
-        },
-      ]);
+      const order = getOrderById(orderId);
+      if (!order) {
+        throw new Error("Order not found for payout.");
+      }
+      const quote = quoteCourierPayoutUsdc(order.amount);
+      const txHash = buildCourierSwapReference(orderId, courierWallet);
 
-      const txHash = result.relayId;
+      // Simulate swap/settlement round-trip for user feedback.
+      await new Promise((resolve) => setTimeout(resolve, 900));
+
       updateOrderStatus(orderId, {
         status: "paid",
         paidAt: Date.now(),
         payoutTxHash: txHash,
+        payoutTokenSymbol: quote.outputTokenSymbol,
+        payoutAmount: quote.outputAmountBaseUnits,
+        payoutSwapRate: quote.rate,
+        payoutSwapReference: txHash,
       });
 
       setState("done");
@@ -81,7 +84,14 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
       <div className="space-y-4 text-center py-8">
         <div className="text-6xl animate-bounce">✅</div>
         <h3 className="text-xl font-bold text-green-400">Delivery Confirmed!</h3>
-        <p className="text-zinc-400">Payment released to courier wallet.</p>
+        <p className="text-zinc-400">
+          Payment settled to courier wallet in {order?.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}.
+        </p>
+        {order?.payoutAmount ? (
+          <p className="text-sm text-zinc-300">
+            {formatPayoutAmount(order.payoutAmount, 2)} {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+          </p>
+        ) : null}
         {order?.payoutTxHash && (
           <p className="font-mono text-xs text-zinc-500 break-all">{order.payoutTxHash}</p>
         )}
@@ -93,10 +103,10 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
     <div className="space-y-5">
       <PhotoUploader onPhoto={handlePhoto} />
 
-      {photo && state !== "verifying" && state !== "releasing" && (
+      {photo && state !== "verifying" && state !== "swapping" && (
         <button
           onClick={handleVerify}
-          disabled={!activeAccount}
+          disabled={!courierWallet}
           className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl font-semibold text-white transition-colors"
         >
           Verify Delivery with AI
@@ -110,10 +120,10 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
         </div>
       )}
 
-      {state === "releasing" && (
+      {state === "swapping" && (
         <div className="text-center py-4 space-y-2">
           <div className="text-3xl animate-pulse">💸</div>
-          <p className="text-zinc-400">Releasing escrow payment...</p>
+          <p className="text-zinc-400">Swapping escrow value to USDC and settling payout...</p>
         </div>
       )}
 
