@@ -1,0 +1,18 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+dist/
+
+# env (NEVER commit secrets)
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+*.pem
+.vercel
