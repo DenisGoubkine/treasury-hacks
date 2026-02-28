@@ -229,7 +229,9 @@ export function registerDoctorVerifiedPatient(input: DoctorRegisterPatientReques
   const record: DoctorRegisterPatientRecord = {
     registryId: `reg_${randomUUID().replace(/-/g, "")}`,
     doctorWallet: input.doctorWallet,
+    doctorName: input.doctorName?.trim() || undefined,
     patientWallet: input.patientWallet,
+    patientLegalName: input.legalName.trim(),
     registryRelayId: input.registryRelayId,
     patientToken: tokenize(`${input.patientWallet}|${input.legalName}|${input.dob}`, config.attestationSecret, "ptok"),
     legalIdentityHash: legalIdentityHash(input),

@@ -56,6 +56,14 @@ type Eip1193Provider = {
   removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
 };
 
+async function readJsonSafe<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 function getEthereumProvider(): Eip1193Provider {
   const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
   if (!provider) {
@@ -108,6 +116,7 @@ export default function DoctorConsole() {
   const [pharmacyLicenseId, setPharmacyLicenseId] = useState("");
 
   const [patientWallet, setPatientWallet] = useState("");
+  const [doctorName, setDoctorName] = useState("");
   const [doctorNpi, setDoctorNpi] = useState("");
   const [doctorDea, setDoctorDea] = useState("");
   const [selectedMedication, setSelectedMedication] = useState<MedicationCatalogItem | null>(
@@ -154,7 +163,8 @@ export default function DoctorConsole() {
     try {
       const raw = window.localStorage.getItem(DOCTOR_PROFILE_STORAGE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { doctorNpi?: string; doctorDea?: string };
+      const parsed = JSON.parse(raw) as { doctorName?: string; doctorNpi?: string; doctorDea?: string };
+      if (parsed.doctorName) setDoctorName(parsed.doctorName);
       if (parsed.doctorNpi) setDoctorNpi(parsed.doctorNpi);
       if (parsed.doctorDea) setDoctorDea(parsed.doctorDea);
     } catch {
@@ -167,11 +177,12 @@ export default function DoctorConsole() {
     window.localStorage.setItem(
       DOCTOR_PROFILE_STORAGE_KEY,
       JSON.stringify({
+        doctorName: doctorName.trim(),
         doctorNpi: doctorNpi.trim(),
         doctorDea: doctorDea.trim().toUpperCase(),
       })
     );
-  }, [doctorNpi, doctorDea]);
+  }, [doctorName, doctorNpi, doctorDea]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !doctorWallet) return;
@@ -321,15 +332,15 @@ export default function DoctorConsole() {
       `/api/compliance/doctor/records?doctorWallet=${encodeURIComponent(doctorWallet)}`
     );
 
-    const body = (await response.json()) as {
+    const body = await readJsonSafe<{
       ok: boolean;
       records?: DoctorFiledAttestation[];
       verifiedPatients?: DoctorRegisterPatientRecord[];
       error?: string;
-    };
+    }>(response);
 
-    if (!response.ok || !body.ok) {
-      throw new Error(body.error || "Failed to load doctor records");
+    if (!response.ok || !body?.ok) {
+      throw new Error(body?.error || `Failed to load doctor records (${response.status})`);
     }
 
     setRecords(body.records || []);
@@ -381,6 +392,7 @@ export default function DoctorConsole() {
         },
         body: JSON.stringify({
           doctorWallet,
+          doctorName: doctorName.trim() || undefined,
           patientWallet: registryPatientWallet.trim(),
           legalName: registryLegalName.trim(),
           dob: registryDob,
@@ -390,10 +402,14 @@ export default function DoctorConsole() {
         }),
       });
 
-      const body = (await response.json()) as DoctorRegisterPatientResponse;
-      if (!response.ok || !body.ok || !body.record) {
-        const issueMessage = body.issues?.[0]?.message;
-        throw new Error(issueMessage || body.error || "Could not register verified patient");
+      const body = await readJsonSafe<DoctorRegisterPatientResponse>(response);
+      if (!response.ok || !body?.ok || !body.record) {
+        const issueMessage = body?.issues?.[0]?.message;
+        throw new Error(
+          issueMessage ||
+            body?.error ||
+            `Could not register verified patient (${response.status})`
+        );
       }
 
       setRegistryLegalName("");
@@ -455,10 +471,14 @@ export default function DoctorConsole() {
         }),
       });
 
-      const body = (await response.json()) as DoctorFileAttestationResponse;
-      if (!response.ok || !body.ok || !body.attestation) {
-        const issueMessage = body.issues?.[0]?.message;
-        throw new Error(issueMessage || body.error || "Could not file attestation");
+      const body = await readJsonSafe<DoctorFileAttestationResponse>(response);
+      if (!response.ok || !body?.ok || !body.attestation) {
+        const issueMessage = body?.issues?.[0]?.message;
+        throw new Error(
+          issueMessage ||
+            body?.error ||
+            `Could not file attestation (${response.status})`
+        );
       }
 
       setCreated(body.attestation);
@@ -746,6 +766,13 @@ export default function DoctorConsole() {
             <div className="grid md:grid-cols-2 gap-3">
               <input
                 type="text"
+                value={doctorName}
+                onChange={(e) => setDoctorName(e.target.value)}
+                placeholder="Doctor full name"
+                className="w-full bg-white border border-zinc-200 px-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
+              />
+              <input
+                type="text"
                 value={doctorNpi}
                 onChange={(e) => setDoctorNpi(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 placeholder="Doctor NPI (10 digits)"
@@ -879,10 +906,10 @@ export default function DoctorConsole() {
 
           <div className="border border-zinc-100 p-4 space-y-3">
             <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">
-              Linked Pharmacies (Visual)
+              Linked Pharmacies
             </p>
             <p className="text-xs text-zinc-400">
-              UI-only preview for now. Marked as encrypted handoff with pharmacy.
+              Encrypted handoff registry for pharmacies linked to this doctor wallet.
             </p>
             <form onSubmit={handleLinkPharmacy} className="space-y-2">
               <input

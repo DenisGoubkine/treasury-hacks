@@ -27,3 +27,7 @@ export function consumeNonce(nonce: string, nowMs: number, ttlMs: number): boole
   cache.set(nonce, nowMs);
   return true;
 }
+
+export function resetNonceCache(): void {
+  global.__phantomdrop_nonce_cache = new Map();
+}

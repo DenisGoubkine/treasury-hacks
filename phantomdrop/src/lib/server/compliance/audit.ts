@@ -38,3 +38,7 @@ export function writeAuditEvent(event: AuditEvent): void {
 export function getRecentAuditEvents(limit = 100): AuditEvent[] {
   return getAuditBuffer().slice(0, Math.max(1, Math.min(limit, 500)));
 }
+
+export function resetAuditEvents(): void {
+  global.__phantomdrop_audit_events = [];
+}

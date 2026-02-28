@@ -3,15 +3,9 @@
 import { Order } from "@/types";
 import EscrowStatus from "./EscrowStatus";
 import DisputeForm from "./DisputeForm";
-<<<<<<< Updated upstream
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DISPUTE_WINDOW_MS } from "@/lib/constants";
 import { computeOrderBreakdown } from "@/lib/pricing";
-=======
-import { useEffect, useState } from "react";
-import { DISPUTE_WINDOW_MS, TOKEN_SYMBOL } from "@/lib/constants";
-import { formatTokenAmount } from "@/lib/tokenFormat";
->>>>>>> Stashed changes
 
 interface Props {
   order: Order;
@@ -30,11 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function OrderCard({ order, onDisputeSubmitted }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
-<<<<<<< Updated upstream
-=======
   const [nowTs, setNowTs] = useState(() => Date.now());
-  const fee = formatTokenAmount(order.amount, 6);
->>>>>>> Stashed changes
   const date = new Date(order.createdAt).toLocaleDateString();
   const pricing = order.totalUsdc
     ? { totalDisplay: order.totalUsdc, pharmacyCostDisplay: order.pharmacyCostUsdc!, courierFeeDisplay: order.courierFeeUsdc!, courierPercent: 20 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getAddress } from "ethers";
 import { useRouter } from "next/navigation";
-import { useDeposit, useSend, useUnlink, useUnlinkBalance } from "@unlink-xyz/react";
+import { useDeposit, useSend, useUnlink, useUnlinkBalance, useWithdraw } from "@unlink-xyz/react";
 
 import {
   DELIVERY_FEE,
@@ -14,13 +14,11 @@ import {
   PLATFORM_UNLINK_ADDRESS,
   TOKEN_ADDRESS,
   TOKEN_IS_NATIVE,
-  TOKEN_SYMBOL,
 } from "@/lib/constants";
 import {
   PatientApprovedMedication,
   PatientApprovedMedicationsResponse,
 } from "@/lib/compliance/types";
-import { formatTokenAmount } from "@/lib/tokenFormat";
 import { computeOrderBreakdown } from "@/lib/pricing";
 import { generateOrderId, saveOrder } from "@/lib/store";
 import { hashWalletIdentity } from "@/lib/identity";
@@ -75,22 +73,59 @@ function isHttp404Error(error: unknown): boolean {
   return status === 404 || message.includes("HTTP 404") || message.includes("404");
 }
 
-async function waitForTxReceipt(provider: Eip1193Provider, txHash: string): Promise<void> {
-  for (let i = 0; i < 180; i += 1) {
-    const receipt = (await provider.request({
-      method: "eth_getTransactionReceipt",
-      params: [txHash],
-    })) as { status?: string } | null;
-    if (receipt?.status) {
-      if (receipt.status === "0x1") return;
-      throw new Error("MetaMask transaction reverted.");
+async function waitForDepositFinalization(
+  provider: Eip1193Provider,
+  relayId: string,
+  txHash: string | undefined,
+  getTxStatus: (txId: string) => Promise<{ state: string; error?: string }>
+): Promise<void> {
+  const deadline = Date.now() + 240_000;
+  let receiptConfirmed = false;
+
+  while (Date.now() < deadline) {
+    if (!receiptConfirmed && txHash) {
+      try {
+        const receipt = (await provider.request({
+          method: "eth_getTransactionReceipt",
+          params: [txHash],
+        })) as { status?: string } | null;
+
+        if (receipt?.status === "0x1") {
+          receiptConfirmed = true;
+        } else if (receipt?.status === "0x0") {
+          throw new Error("MetaMask transaction reverted.");
+        }
+      } catch {
+        // Ignore transient RPC errors and continue polling relay state.
+      }
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    try {
+      const relayStatus = await getTxStatus(relayId);
+      if (relayStatus.state === "succeeded") {
+        return;
+      }
+      if (
+        relayStatus.state === "reverted" ||
+        relayStatus.state === "failed" ||
+        relayStatus.state === "dead"
+      ) {
+        throw new Error(relayStatus.error || `Funding relay ${relayStatus.state}`);
+      }
+    } catch (err) {
+      if (!isHttp404Error(err)) throw err;
+      // 404 can happen before indexer catches up.
+    }
+
+    await sleep(1500);
   }
-  throw new Error("Timed out waiting for MetaMask transaction receipt.");
+
+  throw new Error(
+    "Funding is still pending. Check MetaMask activity for completion, then retry in ~1 minute."
+  );
 }
 
-type EscrowStep = "wallet" | "depositing" | "sending" | "creating" | null;
+type EscrowStep = "wallet" | "depositing" | "sending" | "withdrawing" | "creating" | null;
 const ADDRESS_HISTORY_LIMIT = 8;
 const ADDRESS_STORAGE_PREFIX = "phantomdrop:address_history:v1";
 
@@ -128,16 +163,24 @@ interface Props {
   patientWallet: string;
 }
 
+interface AddressAutocompleteResponse {
+  ok: boolean;
+  suggestions?: string[];
+}
+
 export default function OrderForm({ patientWallet }: Props) {
   const router = useRouter();
 
   const { activeAccount, refresh, getTxStatus, createWallet, createAccount } = useUnlink();
   const { deposit, isPending: isDepositing } = useDeposit();
   const { send, isPending: isSending } = useSend();
+  const { withdraw, isPending: isWithdrawing } = useWithdraw();
   const { balance } = useUnlinkBalance(TOKEN_ADDRESS);
 
   const [dropLocation, setDropLocation] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [remoteAddressSuggestions, setRemoteAddressSuggestions] = useState<string[]>([]);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
   const [selectedApprovalCode, setSelectedApprovalCode] = useState("");
   const [approvals, setApprovals] = useState<PatientApprovedMedication[]>([]);
 
@@ -146,7 +189,6 @@ export default function OrderForm({ patientWallet }: Props) {
   const [escrowStep, setEscrowStep] = useState<EscrowStep>(null);
   const [error, setError] = useState("");
 
-  const feeDisplay = useMemo(() => formatTokenAmount(DELIVERY_FEE, 6), []);
   const breakdown = useMemo(() => computeOrderBreakdown(), []);
   const finalitySeconds = (MONAD_FINALITY_MS / 1000).toFixed(1);
 
@@ -154,6 +196,18 @@ export default function OrderForm({ patientWallet }: Props) {
     () => approvals.find((item) => item.approvalCode === selectedApprovalCode) || null,
     [approvals, selectedApprovalCode]
   );
+  const combinedAddressSuggestions = useMemo(() => {
+    const deduped = new Map<string, string>();
+    for (const address of [...addressSuggestions, ...remoteAddressSuggestions]) {
+      const normalized = address.trim();
+      if (!normalized) continue;
+      const key = normalized.toLowerCase();
+      if (!deduped.has(key)) {
+        deduped.set(key, normalized);
+      }
+    }
+    return Array.from(deduped.values()).slice(0, 12);
+  }, [addressSuggestions, remoteAddressSuggestions]);
 
   // 404-tolerant relay confirmation (Unlink indexer may lag behind chain)
   async function waitForRelayConfirmation(relayId: string): Promise<void> {
@@ -216,9 +270,58 @@ export default function OrderForm({ patientWallet }: Props) {
   }, [loadApprovedMedications]);
 
   useEffect(() => {
-    if (!patientWallet) return;
+    if (!patientWallet) {
+      setAddressSuggestions([]);
+      setRemoteAddressSuggestions([]);
+      return;
+    }
     setAddressSuggestions(loadAddressHistory(patientWallet));
+    setRemoteAddressSuggestions([]);
   }, [patientWallet]);
+
+  useEffect(() => {
+    const query = dropLocation.trim();
+    if (query.length < 3) {
+      setRemoteAddressSuggestions([]);
+      setIsFetchingAddressSuggestions(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setIsFetchingAddressSuggestions(true);
+      try {
+        const response = await fetch(
+          `/api/address/autocomplete?q=${encodeURIComponent(query)}&limit=6`,
+          {
+            signal: controller.signal,
+            cache: "no-store",
+          }
+        );
+        const body = (await response.json()) as AddressAutocompleteResponse;
+        if (!response.ok || !body.ok) {
+          throw new Error("Address autocomplete unavailable");
+        }
+        setRemoteAddressSuggestions(
+          Array.isArray(body.suggestions)
+            ? body.suggestions.filter((item) => typeof item === "string")
+            : []
+        );
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError") {
+          return;
+        }
+        setRemoteAddressSuggestions([]);
+      } finally {
+        setIsFetchingAddressSuggestions(false);
+      }
+    }, 280);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [dropLocation]);
 
   async function placeEscrowOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -239,8 +342,12 @@ export default function OrderForm({ patientWallet }: Props) {
     }
 
     const recipient = PLATFORM_UNLINK_ADDRESS.trim();
-    if (!recipient || !recipient.startsWith("unlink1")) {
-      setError("Platform Unlink address not configured. Set NEXT_PUBLIC_PLATFORM_UNLINK_ADDRESS.");
+    const isUnlinkRecipient = recipient.startsWith("unlink1");
+    const isEvmRecipient = /^0x[a-fA-F0-9]{40}$/.test(recipient);
+    if (!recipient || (!isUnlinkRecipient && !isEvmRecipient)) {
+      setError(
+        "Platform recipient must be unlink1... or 0x... . Update NEXT_PUBLIC_PLATFORM_UNLINK_ADDRESS."
+      );
       return;
     }
 
@@ -301,26 +408,42 @@ export default function OrderForm({ patientWallet }: Props) {
           ],
         })) as string;
 
-        await waitForTxReceipt(provider, txHash);
-        await waitForRelayConfirmation(relay.relayId);
+        await waitForDepositFinalization(provider, relay.relayId, txHash, getTxStatus);
         await refresh();
       }
 
-      // Step 2: Private send to platform escrow (ZK proof — no MetaMask popup, nothing on-chain)
-      setEscrowStep("sending");
+      if (isUnlinkRecipient) {
+        // Step 2A: Private send to platform Unlink escrow (not publicly linkable on-chain).
+        setEscrowStep("sending");
 
-      const sendResult = await send([{
-        token: TOKEN_ADDRESS,
-        recipient,
-        amount: fee,
-      }]);
+        const sendResult = await send([{
+          token: TOKEN_ADDRESS,
+          recipient,
+          amount: fee,
+        }]);
 
-      sendRelayId = sendResult.relayId;
-      await waitForRelayConfirmation(sendResult.relayId);
-      await refresh();
+        sendRelayId = sendResult.relayId;
+        await waitForRelayConfirmation(sendResult.relayId);
+        await refresh();
+      } else {
+        // Step 2B: If env uses 0x recipient, fallback to withdrawal so ordering still works.
+        setEscrowStep("withdrawing");
+
+        const withdrawResult = await withdraw([{
+          token: TOKEN_ADDRESS,
+          recipient,
+          amount: fee,
+        }]);
+
+        sendRelayId = withdrawResult.relayId;
+        await waitForRelayConfirmation(withdrawResult.relayId);
+        await refresh();
+      }
 
       // Step 3: Create order
       setEscrowStep("creating");
+      const createdAtMs = Date.now();
+      const createdAtIso = new Date(createdAtMs).toISOString();
 
       const order: Order = {
         id: generateOrderId(),
@@ -329,8 +452,8 @@ export default function OrderForm({ patientWallet }: Props) {
         amount: DELIVERY_FEE.toString(),
         patientWalletHash: hashWalletIdentity(patientWallet.toLowerCase()),
         status: "funded",
-        createdAt: Date.now(),
-        fundedAt: Date.now(),
+        createdAt: createdAtMs,
+        fundedAt: createdAtMs,
         escrowDepositRelayId: depositRelayId,
         escrowSendRelayId: sendRelayId,
         complianceAttestationId: selectedApproval.attestationId,
@@ -345,10 +468,35 @@ export default function OrderForm({ patientWallet }: Props) {
       };
 
       saveOrder(order);
+      try {
+        await fetch("/api/compliance/order-log", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId: order.id,
+            doctorWallet: selectedApproval.doctorWallet,
+            patientWallet: patientWallet.trim(),
+            patientWalletHash: order.patientWalletHash,
+            medicationCode: selectedApproval.medicationCode,
+            medicationCategory: selectedApproval.medicationCategory,
+            amount: order.amount,
+            dropLocation: order.dropLocation,
+            complianceAttestationId: selectedApproval.attestationId,
+            complianceApprovalCode: selectedApproval.approvalCode,
+            status: order.status,
+            createdAt: createdAtIso,
+          }),
+        });
+      } catch {
+        // Best-effort only: order placement must not fail if audit logging is unavailable.
+      }
 
       const updatedHistory = upsertAddress(addressSuggestions, dropLocation);
       setAddressSuggestions(updatedHistory);
       persistAddressHistory(patientWallet, updatedHistory);
+      setRemoteAddressSuggestions([]);
       router.push("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not place order";
@@ -363,6 +511,7 @@ export default function OrderForm({ patientWallet }: Props) {
     wallet: "Setting up private escrow...",
     depositing: "Funding escrow...",
     sending: "Securing funds via ZK proof...",
+    withdrawing: "Releasing escrow to platform wallet...",
     creating: "Creating order...",
   };
 
@@ -370,7 +519,7 @@ export default function OrderForm({ patientWallet }: Props) {
     ? escrowStepLabel[escrowStep]
     : isDepositing
     ? "Preparing escrow..."
-    : isSending
+    : isSending || isWithdrawing
     ? "Securing funds..."
     : `Place order — $${breakdown.totalDisplay} USDC`;
 
@@ -429,9 +578,14 @@ export default function OrderForm({ patientWallet }: Props) {
 
       <div className="space-y-2">
         <label className="block text-xs font-bold uppercase tracking-widest text-zinc-900">Delivery location</label>
-        {addressSuggestions.length > 0 ? (
+        {combinedAddressSuggestions.length > 0 ? (
           <p className="text-xs text-zinc-400">
             Autofill from your recent addresses is enabled.
+          </p>
+        ) : null}
+        {isFetchingAddressSuggestions ? (
+          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">
+            Searching verified addresses...
           </p>
         ) : null}
         <input
@@ -445,13 +599,13 @@ export default function OrderForm({ patientWallet }: Props) {
           required
         />
         <datalist id="drop-location-suggestions">
-          {addressSuggestions.map((address) => (
+          {combinedAddressSuggestions.map((address) => (
             <option key={address} value={address} />
           ))}
         </datalist>
-        {addressSuggestions.length > 0 ? (
+        {combinedAddressSuggestions.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {addressSuggestions.slice(0, 3).map((address) => (
+            {combinedAddressSuggestions.slice(0, 3).map((address) => (
               <button
                 key={address}
                 type="button"
@@ -489,7 +643,7 @@ export default function OrderForm({ patientWallet }: Props) {
 
       <button
         type="submit"
-        disabled={isPlacingOrder || isDepositing || isSending || approvals.length === 0 || !selectedApproval}
+        disabled={isPlacingOrder || isDepositing || isSending || isWithdrawing || approvals.length === 0 || !selectedApproval}
         className="w-full py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {buttonLabel}
@@ -507,6 +661,7 @@ export default function OrderForm({ patientWallet }: Props) {
             {escrowStep === "wallet" && "Creating anonymous escrow account..."}
             {escrowStep === "depositing" && "Confirm the transaction in MetaMask to fund the escrow."}
             {escrowStep === "sending" && "Privately transferring to platform escrow. No additional approval needed."}
+            {escrowStep === "withdrawing" && "Sending escrow to platform 0x wallet from your private balance."}
             {escrowStep === "creating" && "Finalizing your order..."}
           </p>
         </div>

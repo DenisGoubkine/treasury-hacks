@@ -40,6 +40,26 @@ export interface DoctorApprovalRequestRecord {
   createdAt: number;
 }
 
+export interface DoctorOrderAuditLog {
+  orderId: string;
+  doctorWallet: string;
+  patientWallet: string;
+  patientWalletHash?: string;
+  medicationCode?: string;
+  medicationCategory: string;
+  amount: string;
+  dropLocation: string;
+  complianceAttestationId?: string;
+  complianceApprovalCode?: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface DoctorOrderAuditLogRecord {
+  order: DoctorOrderAuditLog;
+  createdAt: number;
+}
+
 interface PersistedComplianceStoreV1 {
   version: 1;
   complianceRecords: Array<[string, ComplianceRecord]>;
@@ -48,11 +68,21 @@ interface PersistedComplianceStoreV1 {
   doctorApprovalRequests: Array<[string, DoctorApprovalRequestRecord]>;
 }
 
+interface PersistedComplianceStoreV2 {
+  version: 2;
+  complianceRecords: Array<[string, ComplianceRecord]>;
+  doctorAttestations: Array<[string, DoctorAttestationRecord]>;
+  doctorVerifiedPatients: Array<[string, DoctorVerifiedPatientRecord]>;
+  doctorApprovalRequests: Array<[string, DoctorApprovalRequestRecord]>;
+  doctorOrderAuditLogs: Array<[string, DoctorOrderAuditLogRecord]>;
+}
+
 declare global {
   var __phantomdrop_compliance_records: Map<string, ComplianceRecord> | undefined;
   var __phantomdrop_doctor_attestations: Map<string, DoctorAttestationRecord> | undefined;
   var __phantomdrop_doctor_verified_patients: Map<string, DoctorVerifiedPatientRecord> | undefined;
   var __phantomdrop_doctor_approval_requests: Map<string, DoctorApprovalRequestRecord> | undefined;
+  var __phantomdrop_doctor_order_audit_logs: Map<string, DoctorOrderAuditLogRecord> | undefined;
   var __phantomdrop_compliance_store_loaded: boolean | undefined;
 }
 
@@ -60,6 +90,9 @@ function getStoreFilePath(): string {
   const configured = process.env.COMPLIANCE_STORE_FILE?.trim();
   if (configured) {
     return configured.startsWith("/") ? configured : resolve(process.cwd(), configured);
+  }
+  if (process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return "/tmp/compliance-store.json";
   }
   return resolve(process.cwd(), ".data", "compliance-store.json");
 }
@@ -73,16 +106,26 @@ function hydrateStoreIfNeeded(): void {
   global.__phantomdrop_doctor_attestations = new Map();
   global.__phantomdrop_doctor_verified_patients = new Map();
   global.__phantomdrop_doctor_approval_requests = new Map();
+  global.__phantomdrop_doctor_order_audit_logs = new Map();
 
   const filePath = getStoreFilePath();
   if (existsSync(filePath)) {
     try {
-      const parsed = JSON.parse(readFileSync(filePath, "utf8")) as PersistedComplianceStoreV1;
+      const parsed = JSON.parse(readFileSync(filePath, "utf8")) as
+        | PersistedComplianceStoreV1
+        | PersistedComplianceStoreV2;
       if (parsed && parsed.version === 1) {
         global.__phantomdrop_compliance_records = new Map(parsed.complianceRecords || []);
         global.__phantomdrop_doctor_attestations = new Map(parsed.doctorAttestations || []);
         global.__phantomdrop_doctor_verified_patients = new Map(parsed.doctorVerifiedPatients || []);
         global.__phantomdrop_doctor_approval_requests = new Map(parsed.doctorApprovalRequests || []);
+        global.__phantomdrop_doctor_order_audit_logs = new Map();
+      } else if (parsed && parsed.version === 2) {
+        global.__phantomdrop_compliance_records = new Map(parsed.complianceRecords || []);
+        global.__phantomdrop_doctor_attestations = new Map(parsed.doctorAttestations || []);
+        global.__phantomdrop_doctor_verified_patients = new Map(parsed.doctorVerifiedPatients || []);
+        global.__phantomdrop_doctor_approval_requests = new Map(parsed.doctorApprovalRequests || []);
+        global.__phantomdrop_doctor_order_audit_logs = new Map(parsed.doctorOrderAuditLogs || []);
       }
     } catch {
       // Ignore malformed persistence file and start with empty in-memory maps.
@@ -97,12 +140,13 @@ function persistStore(): void {
 
   const filePath = getStoreFilePath();
   const tmpPath = `${filePath}.tmp`;
-  const payload: PersistedComplianceStoreV1 = {
-    version: 1,
+  const payload: PersistedComplianceStoreV2 = {
+    version: 2,
     complianceRecords: Array.from(getRecordMap().entries()),
     doctorAttestations: Array.from(getDoctorRecordMap().entries()),
     doctorVerifiedPatients: Array.from(getVerifiedPatientMap().entries()),
     doctorApprovalRequests: Array.from(getApprovalRequestMap().entries()),
+    doctorOrderAuditLogs: Array.from(getDoctorOrderAuditLogMap().entries()),
   };
 
   mkdirSync(dirname(filePath), { recursive: true });
@@ -144,6 +188,14 @@ function getApprovalRequestMap(): Map<string, DoctorApprovalRequestRecord> {
     global.__phantomdrop_doctor_approval_requests = new Map();
   }
   return global.__phantomdrop_doctor_approval_requests;
+}
+
+function getDoctorOrderAuditLogMap(): Map<string, DoctorOrderAuditLogRecord> {
+  hydrateStoreIfNeeded();
+  if (!global.__phantomdrop_doctor_order_audit_logs) {
+    global.__phantomdrop_doctor_order_audit_logs = new Map();
+  }
+  return global.__phantomdrop_doctor_order_audit_logs;
 }
 
 export function saveComplianceRecord(record: ComplianceRecord): void {
@@ -234,6 +286,23 @@ export function getDoctorApprovalRequestsByDoctor(
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export function saveDoctorOrderAuditLog(order: DoctorOrderAuditLog): void {
+  getDoctorOrderAuditLogMap().set(order.orderId, {
+    order,
+    createdAt: Date.now(),
+  });
+  persistStore();
+}
+
+export function getDoctorOrderAuditLogsByDoctor(
+  doctorWallet: string
+): DoctorOrderAuditLogRecord[] {
+  const normalized = normalizeWallet(doctorWallet);
+  return Array.from(getDoctorOrderAuditLogMap().values())
+    .filter((entry) => normalizeWallet(entry.order.doctorWallet) === normalized)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export function updateDoctorVerifiedPatientWallet(
   doctorWallet: string,
   oldPatientWallet: string,
@@ -287,6 +356,7 @@ export function resetComplianceStore(): void {
   global.__phantomdrop_doctor_attestations = new Map();
   global.__phantomdrop_doctor_verified_patients = new Map();
   global.__phantomdrop_doctor_approval_requests = new Map();
+  global.__phantomdrop_doctor_order_audit_logs = new Map();
   global.__phantomdrop_compliance_store_loaded = true;
   persistStore();
 }

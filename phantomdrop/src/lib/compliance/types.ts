@@ -165,6 +165,7 @@ export interface PatientApprovedMedicationsResponse {
 
 export interface DoctorRegisterPatientRequest extends LegalIdentityInput {
   doctorWallet: string;
+  doctorName?: string;
   patientWallet: string;
   registryRelayId: string;
 }
@@ -172,7 +173,9 @@ export interface DoctorRegisterPatientRequest extends LegalIdentityInput {
 export interface DoctorRegisterPatientRecord {
   registryId: string;
   doctorWallet: string;
+  doctorName?: string;
   patientWallet: string;
+  patientLegalName?: string;
   registryRelayId: string;
   patientToken: string;
   legalIdentityHash: string;
