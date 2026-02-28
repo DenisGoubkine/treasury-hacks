@@ -439,7 +439,7 @@ export default function OrderForm({ patientWallet }: Props) {
       }
 
       let transferError: unknown;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
+      for (let attempt = 0; attempt < 30; attempt += 1) {
         try {
           if (isUnlinkRecipient) {
             const sendResult = await send([{
@@ -464,7 +464,7 @@ export default function OrderForm({ patientWallet }: Props) {
           break;
         } catch (err) {
           transferError = err;
-          if (!isLikelyInsufficientBalanceError(err) || attempt === 7) {
+          if (!isLikelyInsufficientBalanceError(err) || attempt === 29) {
             throw err;
           }
           await sleep(2000);
@@ -546,8 +546,8 @@ export default function OrderForm({ patientWallet }: Props) {
   const escrowStepLabel: Record<string, string> = {
     wallet: "Setting up private escrow...",
     depositing: "Funding escrow...",
-    sending: "Securing funds via ZK proof...",
-    withdrawing: "Releasing escrow to platform wallet...",
+    sending: "ZK payment verification...",
+    withdrawing: "ZK payment verification...",
     creating: "Creating order...",
   };
 
@@ -696,8 +696,8 @@ export default function OrderForm({ patientWallet }: Props) {
           <p className="text-xs text-zinc-500">
             {escrowStep === "wallet" && "Creating anonymous escrow account..."}
             {escrowStep === "depositing" && "Confirm the transaction in MetaMask to fund the escrow."}
-            {escrowStep === "sending" && "Privately transferring to platform escrow. No additional approval needed."}
-            {escrowStep === "withdrawing" && "Sending escrow to platform 0x wallet from your private balance."}
+            {escrowStep === "sending" && "Escrow funded. Verifying private transfer and finalizing payment..."}
+            {escrowStep === "withdrawing" && "Escrow funded. Verifying transfer to platform wallet and finalizing payment..."}
             {escrowStep === "creating" && "Finalizing your order..."}
           </p>
         </div>
