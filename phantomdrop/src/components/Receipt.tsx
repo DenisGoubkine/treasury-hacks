@@ -1,6 +1,7 @@
 "use client";
 
 import { Order } from "@/types";
+import { TOKEN_SYMBOL } from "@/lib/constants";
 
 interface Props {
   order: Order;
@@ -16,7 +17,6 @@ function hashString(str: string): string {
 
 export default function Receipt({ order }: Props) {
   const proofHash = hashString(`${order.id}${order.patientWallet}${order.amount}${order.paidAt}`);
-  const fee = (Number(order.amount) / 1_000_000).toFixed(2);
 
   function download() {
     const content = [
@@ -27,7 +27,7 @@ export default function Receipt({ order }: Props) {
       `Order ID:     ${order.id}`,
       `Date:         ${new Date(order.paidAt || order.createdAt).toISOString()}`,
       `Amount:       [PRIVATE — ZK shielded]`,
-      `Token:        USDC`,
+      `Token:        ${TOKEN_SYMBOL}`,
       `Network:      Monad Testnet`,
       "",
       `Patient:      [PRIVATE — ZK shielded]`,
@@ -36,6 +36,8 @@ export default function Receipt({ order }: Props) {
       `ZK Proof:     0x${proofHash}...`,
       `Escrow tx:    ${order.txHash || "[private]"}`,
       `Payout tx:    ${order.payoutTxHash || "[private]"}`,
+      `Approval:     ${order.complianceApprovalCode || "[doctor portal]"}`,
+      `Compliance:   ${order.complianceAttestationId || "[not attached]"}`,
       "",
       "───────────────────────────────────────",
       "This receipt proves a delivery occurred",
@@ -84,6 +86,18 @@ export default function Receipt({ order }: Props) {
           <span>ZK Proof</span>
           <span className="text-purple-400">0x{proofHash}...</span>
         </div>
+        {order.complianceAttestationId && (
+          <div className="flex justify-between">
+            <span>Compliance</span>
+            <span className="text-green-400">{order.complianceAttestationId.slice(0, 16)}...</span>
+          </div>
+        )}
+        {order.complianceApprovalCode && (
+          <div className="flex justify-between">
+            <span>Approval</span>
+            <span className="text-zinc-300">{order.complianceApprovalCode}</span>
+          </div>
+        )}
       </div>
 
       <button

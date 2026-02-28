@@ -5,16 +5,9 @@ export type OrderStatus =
   | "delivered"
   | "paid";
 
-export type MedicationCategory =
-  | "Prescription Refill"
-  | "Mental Health"
-  | "Reproductive Health"
-  | "HIV/PrEP"
-  | "Other";
-
 export interface Order {
   id: string;
-  medicationType: MedicationCategory;
+  medicationType: string;
   dropLocation: string;
   amount: string; // stored as string (bigint serialization)
   patientWallet: string;
@@ -29,4 +22,10 @@ export interface Order {
   aiVerificationResult?: boolean;
   txHash?: string;
   payoutTxHash?: string;
+  complianceAttestationId?: string;
+  complianceApprovalCode?: string;
+  compliancePatientToken?: string;
+  complianceDoctorToken?: string;
+  complianceSignature?: string;
+  complianceExpiresAt?: string;
 }

@@ -3,6 +3,8 @@
 import { Order } from "@/types";
 import { useUnlink } from "@unlink-xyz/react";
 import { updateOrderStatus } from "@/lib/store";
+import { TOKEN_SYMBOL } from "@/lib/constants";
+import { formatTokenAmount } from "@/lib/tokenFormat";
 
 interface Props {
   order: Order;
@@ -11,7 +13,7 @@ interface Props {
 
 export default function CourierJobCard({ order, onAccepted }: Props) {
   const { activeAccount } = useUnlink();
-  const fee = (Number(order.amount) / 1_000_000).toFixed(2);
+  const fee = formatTokenAmount(order.amount, 6);
 
   function handleAccept() {
     if (!activeAccount) return;
@@ -35,7 +37,7 @@ export default function CourierJobCard({ order, onAccepted }: Props) {
           <p className="text-xs text-zinc-500">Contents unknown · Sealed at pharmacy</p>
         </div>
         <div className="text-right">
-          <p className="text-green-400 font-bold text-lg">{fee} USDC</p>
+          <p className="text-green-400 font-bold text-lg">{fee} {TOKEN_SYMBOL}</p>
           <p className="text-xs text-zinc-500">payout on delivery</p>
         </div>
       </div>

@@ -7,8 +7,9 @@ import CourierJobCard from "@/components/CourierJobCard";
 import WalletConnect from "@/components/WalletConnect";
 import DeliveryVerifier from "@/components/DeliveryVerifier";
 import { getAvailableOrders, getOrdersByCourier } from "@/lib/store";
+import { MONAD_FINALITY_MS, TOKEN_SYMBOL } from "@/lib/constants";
+import { formatTokenAmount } from "@/lib/tokenFormat";
 import { Order } from "@/types";
-import Link from "next/link";
 
 export default function CourierPage() {
   const { activeAccount, ready } = useUnlink();
@@ -24,7 +25,7 @@ export default function CourierPage() {
       setMyJobs(getOrdersByCourier(activeAccount.address));
     };
     refresh();
-    const interval = setInterval(refresh, 2000);
+    const interval = setInterval(refresh, MONAD_FINALITY_MS);
     return () => clearInterval(interval);
   }, [activeAccount]);
 
@@ -120,7 +121,7 @@ export default function CourierPage() {
                             📍 {order.dropLocation}
                           </p>
                           <p className="text-xs text-zinc-500 mt-0.5">
-                            Payout: {(Number(order.amount) / 1_000_000).toFixed(2)} USDC
+                            Payout: {formatTokenAmount(order.amount, 6)} {TOKEN_SYMBOL}
                           </p>
                         </div>
                         <span

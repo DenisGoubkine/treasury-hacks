@@ -1,10 +1,12 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import { useUnlink } from "@unlink-xyz/react";
 import Navbar from "@/components/Navbar";
 import DeliveryVerifier from "@/components/DeliveryVerifier";
 import { getOrderById } from "@/lib/store";
+import { TOKEN_SYMBOL } from "@/lib/constants";
+import { formatTokenAmount } from "@/lib/tokenFormat";
 import { Order } from "@/types";
 import Link from "next/link";
 
@@ -15,14 +17,9 @@ export default function VerifyPage({
 }) {
   const { id } = use(params);
   const { activeAccount } = useUnlink();
-  const [order, setOrder] = useState<Order | null>(null);
   const [done, setDone] = useState(false);
   const [payoutTx, setPayoutTx] = useState<string | undefined>();
-
-  useEffect(() => {
-    const o = getOrderById(id);
-    setOrder(o || null);
-  }, [id]);
+  const order: Order | null = getOrderById(id) || null;
 
   if (!order) {
     return (
@@ -62,7 +59,7 @@ export default function VerifyPage({
           <div className="flex justify-between text-sm">
             <span className="text-zinc-500">Payout</span>
             <span className="text-green-400 font-semibold">
-              {(Number(order.amount) / 1_000_000).toFixed(2)} USDC
+              {formatTokenAmount(order.amount, 6)} {TOKEN_SYMBOL}
             </span>
           </div>
           <div className="flex justify-between text-sm">

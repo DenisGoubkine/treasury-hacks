@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PhantomDrop
 
-## Getting Started
+Customer-first private delivery app on Monad testnet.
 
-First, run the development server:
+## Run
 
 ```bash
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` (or the next free port).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Fixing "Insufficient balance ... need X, have 0"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+That error means your **Unlink private balance** is zero for the configured token.  
+Having MON in MetaMask is not enough until you deposit into Unlink.
 
-## Learn More
+This app now includes a **Fund Unlink Private Balance** card on:
+- `/order`
+- `/doctor`
 
-To learn more about Next.js, take a look at the following resources:
+Flow:
+1. Connect your Unlink wallet in app.
+2. In funding card, enter amount (default `0.01`).
+3. Approve MetaMask prompts (network switch to Monad Testnet + deposit tx).
+4. Wait for relay confirmation.
+5. Retry request/order action.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Default token config is native MON (`ETH_TOKEN` sentinel): `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Wallet format note:
+- Client identity wallet fields accept `unlink1...` (Unlink private wallet) or `0x...` (Monad EOA wallet).
 
-## Deploy on Vercel
+## End-to-End Verification Model
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Patient selects medication from catalog and sends wallet transaction request to doctor wallet (`requestRelayId` proof).
+2. Doctor validates legal identity in verified patient registry.
+3. Doctor files signed attestation for that specific request (wallet-linked eligibility).
+4. Patient receives approval code (`DOC-...`) and completes checkout.
+5. Pharmacy reads sealed handoff proving licensed doctor approval for a verified patient.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## APIs
+
+### Patient -> Doctor Request
+
+- `POST /api/compliance/doctor/request`
+  - Requires patient wallet + legal identity fields + medication code + `requestRelayId`.
+  - Requires patient wallet proof signature (Monad EOA signer + nonce + timestamp).
+  - Creates request id (`req_...`) with verification status.
+
+### Doctor Registry + Approval
+
+- `POST /api/compliance/doctor/register-patient`
+  - Auth: doctor wallet signature headers (`x-doctor-monad-wallet`, `x-doctor-request-ts`, `x-doctor-request-nonce`, `x-doctor-request-signature`)
+  - Requires on-chain registration signal relay id (`registryRelayId`) generated during doctor registration.
+  - Registers legal patient identity hash against patient wallet.
+
+- `POST /api/compliance/doctor/file`
+  - Auth: doctor wallet signature headers (`x-doctor-monad-wallet`, `x-doctor-request-ts`, `x-doctor-request-nonce`, `x-doctor-request-signature`)
+  - Requires `requestId` and only approves `registry_verified` requests with matching medication code.
+  - Returns approval code + Monad anchor metadata.
+  - Stores prescription authorization as hash (`prescriptionHash`) instead of raw prescription ID.
+
+- `GET /api/compliance/doctor/records?doctorWallet=...`
+  - Auth: doctor wallet signature headers (`x-doctor-monad-wallet`, `x-doctor-request-ts`, `x-doctor-request-nonce`, `x-doctor-request-signature`)
+  - Returns filed attestations + incoming patient requests.
+
+### Patient Checkout Confirmation
+
+- `POST /api/compliance/doctor/confirm`
+  - Verifies approval code is tied to connected patient wallet.
+  - Returns purchase policy used in order checkout.
+
+### Pharmacy Handoff
+
+- `GET /api/compliance/pharmacy/:attestationId`
+  - Auth: `x-pharmacy-api-key`
+  - Replay defense: `x-request-ts`, `x-request-nonce`, `x-request-signature`
+  - Returns encrypted `sealed-v1` envelope.
+  - Includes doctor/provider verification status and patient legal verification status.
+
+### Audit
+
+- `GET /api/compliance/audit?limit=100`
+  - Auth: `x-compliance-admin-key`
+
+## Env Vars
+
+See [`.env.example`](./.env.example).
+
+Important server-only keys:
+
+- `COMPLIANCE_PHARMACY_API_KEY`
+- `COMPLIANCE_TRANSPORT_SECRET`
+- `COMPLIANCE_ATTESTATION_SECRET`
+- `COMPLIANCE_ENCRYPTION_SECRET`
+
+Never expose `COMPLIANCE_*` as `NEXT_PUBLIC_*`.
+
+## Beta Limitation
+
+Attestation storage, registry, request queues, audit, and nonce caches are in-memory in this prototype. Move to encrypted persistent storage + managed KMS before production deployment.

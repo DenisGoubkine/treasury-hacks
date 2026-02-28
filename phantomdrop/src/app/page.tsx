@@ -21,12 +21,11 @@ export default function Home() {
         </h1>
 
         <p className="text-lg text-zinc-400 max-w-xl mx-auto leading-relaxed">
-          Anonymous pharmaceutical delivery with private stablecoin escrow.
-          AI confirms delivery. ZK proofs hide everything. The only payment
-          rail where escrow + anonymity + delivery verification all work together.
+          Doctor-filed purchase approvals, private stablecoin escrow, and rapid Monad settlement.
+          Patients use a simple approval code while prescription decisions stay on the doctor side.
         </p>
 
-        <div className="flex items-center justify-center gap-4 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <Link
             href="/order"
             className="px-8 py-3.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-white transition-colors text-base"
@@ -38,6 +37,12 @@ export default function Home() {
             className="px-8 py-3.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-semibold text-zinc-200 transition-colors text-base border border-zinc-700"
           >
             I&apos;m a Courier →
+          </Link>
+          <Link
+            href="/doctor"
+            className="px-8 py-3.5 bg-zinc-900 hover:bg-zinc-800 rounded-xl font-semibold text-zinc-200 transition-colors text-base border border-purple-800/60"
+          >
+            Doctor Console →
           </Link>
         </div>
       </section>
@@ -53,20 +58,20 @@ export default function Home() {
             {
               icon: "🔒",
               step: "01",
-              title: "Order Anonymously",
-              desc: "Connect your Unlink wallet — no name, no account, no data. Choose medication category and drop location. Pay with private stablecoins.",
+              title: "Doctor Files Approval",
+              desc: "Doctor submits an encrypted attestation tied to the patient's wallet and prescription policy.",
             },
             {
-              icon: "🚴",
+              icon: "🧾",
               step: "02",
-              title: "Courier Delivers",
-              desc: "A courier picks up a sealed package. They only see delivery coordinates — never your identity or what's inside.",
+              title: "Patient Uses Approval Code",
+              desc: "Patient enters approval code and pays escrow in one flow. No medical jargon at checkout.",
             },
             {
               icon: "✅",
               step: "03",
-              title: "AI Verifies. Escrow Releases.",
-              desc: "Courier uploads a doorstep photo. GPT-4o confirms the package arrived. Escrow releases automatically. No trust required.",
+              title: "Delivery + Auto Settlement",
+              desc: "Courier confirms dropoff, AI verifies package presence, and escrow releases with Monad-speed finality.",
             },
           ].map(({ icon, step, title, desc }) => (
             <div

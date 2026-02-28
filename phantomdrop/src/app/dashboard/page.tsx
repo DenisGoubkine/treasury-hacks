@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import OrderCard from "@/components/OrderCard";
 import WalletConnect from "@/components/WalletConnect";
 import { getOrdersByPatient } from "@/lib/store";
+import { MONAD_FINALITY_MS } from "@/lib/constants";
 import { Order } from "@/types";
 import Link from "next/link";
 
@@ -17,7 +18,7 @@ export default function DashboardPage() {
     if (!activeAccount) return;
     const refresh = () => setOrders(getOrdersByPatient(activeAccount.address));
     refresh();
-    const interval = setInterval(refresh, 3000);
+    const interval = setInterval(refresh, MONAD_FINALITY_MS);
     return () => clearInterval(interval);
   }, [activeAccount]);
 
@@ -29,7 +30,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-white">My Orders</h1>
             <p className="text-zinc-400 text-sm mt-1">
-              Track your anonymous deliveries
+              Live updates on Monad finality (~0.8s)
             </p>
           </div>
           <Link

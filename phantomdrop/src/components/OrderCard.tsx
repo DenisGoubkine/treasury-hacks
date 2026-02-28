@@ -3,6 +3,8 @@
 import { Order } from "@/types";
 import EscrowStatus from "./EscrowStatus";
 import { useState } from "react";
+import { TOKEN_SYMBOL } from "@/lib/constants";
+import { formatTokenAmount } from "@/lib/tokenFormat";
 
 interface Props {
   order: Order;
@@ -18,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function OrderCard({ order }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const fee = (Number(order.amount) / 1_000_000).toFixed(2);
+  const fee = formatTokenAmount(order.amount, 6);
   const date = new Date(order.createdAt).toLocaleDateString();
 
   return (
@@ -39,7 +41,7 @@ export default function OrderCard({ order }: Props) {
           </div>
           <p className="text-white font-medium">{order.medicationType}</p>
           <p className="text-xs text-zinc-500">
-            {date} · {fee} USDC escrowed
+            {date} · {fee} {TOKEN_SYMBOL} escrowed
           </p>
         </div>
         <span className="text-zinc-600 text-sm">{expanded ? "▲" : "▼"}</span>
@@ -55,6 +57,20 @@ export default function OrderCard({ order }: Props) {
               <span className="text-zinc-500">Drop location</span>
               <span className="text-zinc-300">{order.dropLocation}</span>
             </div>
+            {order.complianceAttestationId && (
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Compliance</span>
+                <span className="font-mono text-green-400 text-xs">
+                  {order.complianceAttestationId.slice(0, 16)}...
+                </span>
+              </div>
+            )}
+            {order.complianceApprovalCode && (
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Approval code</span>
+                <span className="font-mono text-zinc-300 text-xs">{order.complianceApprovalCode}</span>
+              </div>
+            )}
             {order.courierWallet && (
               <div className="flex justify-between">
                 <span className="text-zinc-500">Courier</span>
