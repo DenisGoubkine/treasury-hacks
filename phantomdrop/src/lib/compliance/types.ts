@@ -46,7 +46,7 @@ export interface ComplianceAttestResponse {
 }
 
 export interface DoctorFileAttestationRequest {
-  requestId: string;
+  requestId?: string;
   doctorWallet: string;
   doctorNpi: string;
   doctorDea?: string;
@@ -95,6 +95,13 @@ export interface DoctorFileAttestationResponse {
 export interface DoctorConfirmAttestationRequest {
   approvalCode: string;
   patientWallet: string;
+  walletProof: {
+    version: string;
+    monadWallet: string;
+    requestTs: string;
+    requestNonce: string;
+    signature: string;
+  };
 }
 
 export interface DoctorConfirmAttestationResponse {
@@ -107,6 +114,37 @@ export interface DoctorConfirmAttestationResponse {
     quantity: number;
     prescriptionHash: string;
   };
+  error?: string;
+}
+
+export interface PatientWorkspaceWalletProof {
+  version: string;
+  monadWallet: string;
+  action: string;
+  resource: string;
+  requestTs: string;
+  requestNonce: string;
+  signature: string;
+}
+
+export interface PatientApprovedMedication {
+  approvalCode: string;
+  attestationId: string;
+  doctorWallet: string;
+  medicationCode: string;
+  medicationCategory: string;
+  controlledSchedule: ControlledSchedule;
+  quantity: number;
+  validUntilIso: string;
+  patientToken: string;
+  doctorToken: string;
+  signature: string;
+}
+
+export interface PatientApprovedMedicationsResponse {
+  ok: boolean;
+  patientWallet?: string;
+  approvals?: PatientApprovedMedication[];
   error?: string;
 }
 

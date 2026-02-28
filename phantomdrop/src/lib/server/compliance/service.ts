@@ -11,6 +11,7 @@ import {
   DoctorFiledAttestation,
   DoctorRegisterPatientRecord,
   DoctorRegisterPatientRequest,
+  PatientApprovedMedication,
   PatientDoctorApprovalRequest,
   PatientDoctorApprovalRequestRecord,
   PharmacyHandoffResponse,
@@ -30,6 +31,7 @@ import {
   getDoctorApprovalRequestsByDoctor,
   getDoctorAttestationRecord,
   getDoctorAttestationRecordByAttestationId,
+  getDoctorAttestationRecordsByPatient,
   getDoctorVerifiedPatient,
   saveComplianceRecord,
   saveDoctorApprovalRequest,
@@ -286,40 +288,53 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
 } {
   const issues = validateDoctorFileAttestationInput(input);
 
-  const requestRecord = getDoctorApprovalRequest(input.requestId);
-  if (!requestRecord) {
-    issues.push({
-      field: "requestId",
-      code: "REQUEST_NOT_FOUND",
-      message: "Doctor request was not found.",
-    });
-  } else {
-    if (requestRecord.request.doctorWallet !== input.doctorWallet) {
-      issues.push({
-        field: "doctorWallet",
-        code: "REQUEST_DOCTOR_MISMATCH",
-        message: "Request is not assigned to this doctor wallet.",
-      });
-    }
-    if (requestRecord.request.patientWallet !== input.patientWallet) {
-      issues.push({
-        field: "patientWallet",
-        code: "REQUEST_PATIENT_MISMATCH",
-        message: "Request is not linked to this patient wallet.",
-      });
-    }
-    if (requestRecord.request.verificationStatus !== "registry_verified") {
+  const inputRequestId = input.requestId?.trim() || "";
+  const requestRecord = inputRequestId ? getDoctorApprovalRequest(inputRequestId) : undefined;
+  if (inputRequestId) {
+    if (!requestRecord) {
       issues.push({
         field: "requestId",
-        code: "REQUEST_NOT_VERIFIED",
-        message: "Patient legal identity is not registry-verified for this request.",
+        code: "REQUEST_NOT_FOUND",
+        message: "Doctor request was not found.",
       });
+    } else {
+      if (requestRecord.request.doctorWallet !== input.doctorWallet) {
+        issues.push({
+          field: "doctorWallet",
+          code: "REQUEST_DOCTOR_MISMATCH",
+          message: "Request is not assigned to this doctor wallet.",
+        });
+      }
+      if (requestRecord.request.patientWallet !== input.patientWallet) {
+        issues.push({
+          field: "patientWallet",
+          code: "REQUEST_PATIENT_MISMATCH",
+          message: "Request is not linked to this patient wallet.",
+        });
+      }
+      if (requestRecord.request.verificationStatus !== "registry_verified") {
+        issues.push({
+          field: "requestId",
+          code: "REQUEST_NOT_VERIFIED",
+          message: "Patient legal identity is not registry-verified for this request.",
+        });
+      }
+      if (requestRecord.request.medicationCode !== input.medicationCode) {
+        issues.push({
+          field: "medicationCode",
+          code: "REQUEST_MEDICATION_MISMATCH",
+          message: "Attestation medication must match the medication requested by the patient.",
+        });
+      }
     }
-    if (requestRecord.request.medicationCode !== input.medicationCode) {
+  } else {
+    const registry = getDoctorVerifiedPatient(input.doctorWallet, input.patientWallet);
+    if (!registry) {
       issues.push({
-        field: "medicationCode",
-        code: "REQUEST_MEDICATION_MISMATCH",
-        message: "Attestation medication must match the medication requested by the patient.",
+        field: "requestId",
+        code: "MISSING_REQUEST_OR_VERIFIED_LINK",
+        message:
+          "No patient request provided. Register this patient in Step 1 first, or file using a request ID.",
       });
     }
   }
@@ -327,6 +342,9 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
   if (issues.length > 0) {
     return { issues };
   }
+
+  const resolvedRequestId =
+    inputRequestId || `manual_${randomUUID().replace(/-/g, "").slice(0, 18)}`;
 
   const config = getComplianceConfig();
   const issuedAt = new Date().toISOString();
@@ -346,12 +364,12 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
   }
   const prescriptionHash = createHash("sha256")
     .update(
-      `${input.requestId}|${input.patientWallet}|${input.doctorWallet}|${input.medicationCode}|${input.quantity}|${input.doctorNpi}`
+      `${resolvedRequestId}|${input.patientWallet}|${input.doctorWallet}|${input.medicationCode}|${input.quantity}|${input.doctorNpi}`
     )
     .digest("hex");
 
   const patientToken = tokenize(
-    `${input.patientWallet}|${input.medicationCode}|${input.requestId}`,
+    `${input.patientWallet}|${input.medicationCode}|${resolvedRequestId}`,
     config.attestationSecret,
     "ptok"
   );
@@ -362,14 +380,14 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
   );
 
   const chainAnchor = buildChainAnchor(
-    `${attestationId}|${input.patientWallet}|${input.medicationCode}|${input.quantity}|${input.requestId}`,
+    `${attestationId}|${input.patientWallet}|${input.medicationCode}|${input.quantity}|${resolvedRequestId}`,
     config.attestationSecret
   );
 
   const attestation: DoctorFiledAttestation = {
     approvalCode,
     attestationId,
-    requestId: input.requestId,
+    requestId: resolvedRequestId,
     doctorWallet: input.doctorWallet,
     patientWallet: input.patientWallet,
     patientToken,
@@ -407,7 +425,7 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
 
   const encryptedPrescription = encryptJson(
     {
-      requestId: input.requestId,
+      requestId: resolvedRequestId,
       prescriptionHash,
       doctorNpi: input.doctorNpi,
       doctorDea: input.doctorDea,
@@ -474,6 +492,31 @@ export function confirmDoctorAttestation(
       prescriptionHash: record.attestation.prescriptionHash,
     },
   };
+}
+
+export function getPatientApprovedMedications(patientWallet: string): PatientApprovedMedication[] {
+  const now = Date.now();
+  return getDoctorAttestationRecordsByPatient(patientWallet)
+    .map((record) => record.attestation)
+    .filter((attestation) => {
+      if (!attestation.canPurchase) return false;
+      const expiry = Date.parse(attestation.validUntilIso);
+      if (Number.isNaN(expiry) || expiry <= now) return false;
+      return true;
+    })
+    .map((attestation) => ({
+      approvalCode: attestation.approvalCode,
+      attestationId: attestation.attestationId,
+      doctorWallet: attestation.doctorWallet,
+      medicationCode: attestation.medicationCode,
+      medicationCategory: attestation.medicationCategory,
+      controlledSchedule: attestation.controlledSchedule,
+      quantity: attestation.quantity,
+      validUntilIso: attestation.validUntilIso,
+      patientToken: attestation.patientToken,
+      doctorToken: attestation.doctorToken,
+      signature: attestation.signature,
+    }));
 }
 
 export function buildPharmacyHandoff(attestationId: string): PharmacyHandoffResponse {

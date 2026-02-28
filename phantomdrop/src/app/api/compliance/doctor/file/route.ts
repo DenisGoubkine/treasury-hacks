@@ -23,12 +23,13 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
   }
+  const requestRef = body.requestId?.trim() || "manual";
 
   const auth = verifyDoctorWalletAuth({
     doctorWallet: body.doctorWallet,
     monadWallet,
     action: "file_attestation",
-    resource: `${body.requestId}|${body.patientWallet}|${body.medicationCode}`,
+    resource: `${requestRef}|${body.patientWallet}|${body.medicationCode}`,
     requestTs,
     requestNonce,
     signature: requestSignature,

@@ -4,7 +4,10 @@ import { hashIp, writeAuditEvent } from "@/lib/server/compliance/audit";
 import { getComplianceConfig } from "@/lib/server/compliance/config";
 import { verifyDoctorWalletAuth } from "@/lib/server/compliance/doctorAuth";
 import { getDoctorApprovalRequestsForDoctor } from "@/lib/server/compliance/service";
-import { getDoctorAttestationRecordsByDoctor } from "@/lib/server/compliance/store";
+import {
+  getDoctorAttestationRecordsByDoctor,
+  getDoctorVerifiedPatientsByDoctor,
+} from "@/lib/server/compliance/store";
 
 export async function GET(request: NextRequest) {
   const config = getComplianceConfig();
@@ -46,12 +49,14 @@ export async function GET(request: NextRequest) {
 
   const records = getDoctorAttestationRecordsByDoctor(doctorWallet).slice(0, 50);
   const requests = getDoctorApprovalRequestsForDoctor(doctorWallet).slice(0, 100);
+  const verifiedPatients = getDoctorVerifiedPatientsByDoctor(doctorWallet).slice(0, 100);
 
   return NextResponse.json(
     {
       ok: true,
       records: records.map((record) => record.attestation),
       requests,
+      verifiedPatients: verifiedPatients.map((record) => record.record),
     },
     { status: 200 }
   );

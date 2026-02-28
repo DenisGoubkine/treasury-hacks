@@ -17,6 +17,16 @@ type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
 };
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isHttp404Error(error: unknown): boolean {
+  const status = Number((error as { status?: number })?.status ?? 0);
+  const message = error instanceof Error ? error.message : String(error);
+  return status === 404 || message.includes("HTTP 404");
+}
+
 function getEthereumProvider(): Eip1193Provider {
   const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
   if (!provider) {
@@ -68,7 +78,7 @@ async function waitForTxReceipt(provider: Eip1193Provider, txHash: string): Prom
 }
 
 export default function FundWalletCard() {
-  const { activeAccount, refresh, waitForConfirmation } = useUnlink();
+  const { activeAccount, refresh, getTxStatus } = useUnlink();
   const { deposit, isPending } = useDeposit();
   const { balance } = useUnlinkBalance(TOKEN_ADDRESS);
 
@@ -81,6 +91,40 @@ export default function FundWalletCard() {
     () => formatUnits(balance, TOKEN_DECIMALS),
     [balance]
   );
+
+  async function waitForRelayWith404Tolerance(relayId: string): Promise<void> {
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      try {
+        const status = await getTxStatus(relayId);
+        if (status.state === "succeeded") {
+          return;
+        }
+        if (status.state === "reverted" || status.state === "failed" || status.state === "dead") {
+          throw new Error(status.error || `Transaction ${status.state}`);
+        }
+      } catch (error) {
+        if (!isHttp404Error(error)) {
+          throw error;
+        }
+      }
+      await sleep(2000);
+    }
+    throw new Error("Timed out waiting for Unlink to index this deposit.");
+  }
+
+  async function handleRefreshBalance() {
+    setError("");
+    setStatus("Refreshing private balance...");
+    try {
+      await refresh();
+      setStatus("Private balance refreshed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Refresh failed.";
+      setError(message);
+      setStatus("");
+    }
+  }
 
   async function handleFund() {
     if (!activeAccount) {
@@ -125,16 +169,22 @@ export default function FundWalletCard() {
       })) as string;
 
       await waitForTxReceipt(provider, txHash);
-      setStatus("Waiting for Unlink relay confirmation...");
-      await waitForConfirmation(relay.relayId);
+      setStatus("Finalizing private balance in Unlink...");
+      await waitForRelayWith404Tolerance(relay.relayId);
       await refresh();
-
-      setStatus("Deposit confirmed.");
+      setStatus("Deposit confirmed and private balance updated.");
       setLastTxHash(txHash);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Funding failed.";
-      setError(message);
-      setStatus("");
+      if (isHttp404Error(err)) {
+        setError(
+          "Deposit was submitted, but Unlink indexer is still syncing. Wait 15-60s, then press Refresh Balance."
+        );
+        setStatus("Deposit submitted. Waiting for indexer sync.");
+      } else {
+        setError(message);
+        setStatus("");
+      }
     }
   }
 
@@ -142,9 +192,15 @@ export default function FundWalletCard() {
     <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-3">
       <h3 className="text-white font-semibold">Fund Unlink Private Balance</h3>
       <p className="text-xs text-zinc-400">
-        Moves {TOKEN_SYMBOL} from MetaMask into your Unlink private wallet so requests/orders stop failing with
-        insufficient balance.
+        MetaMask balance and Unlink private balance are different. This moves {TOKEN_SYMBOL} from MetaMask into
+        your private Unlink balance used by this app.
       </p>
+
+      <div className="text-xs text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1">
+        <p>1. MetaMask holds your normal on-chain funds.</p>
+        <p>2. Unlink holds encrypted private funds.</p>
+        <p>3. You must deposit once before private sends can work.</p>
+      </div>
 
       <div className="text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-xl p-3 font-mono">
         Private balance: {balanceDisplay} {TOKEN_SYMBOL}
@@ -166,6 +222,14 @@ export default function FundWalletCard() {
           {isPending ? "Funding..." : "Fund"}
         </button>
       </div>
+
+      <button
+        onClick={handleRefreshBalance}
+        disabled={!activeAccount || isPending}
+        className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-xl text-sm font-semibold text-zinc-200 border border-zinc-700"
+      >
+        Refresh Balance
+      </button>
 
       {status ? <p className="text-xs text-emerald-400">{status}</p> : null}
       {error ? <p className="text-xs text-red-400">{error}</p> : null}

@@ -212,11 +212,12 @@ export function validateDoctorFileAttestationInput(
 ): ComplianceIssue[] {
   const issues: ComplianceIssue[] = [];
 
-  if (input.requestId.trim().length < 8) {
+  const requestId = input.requestId?.trim() || "";
+  if (requestId && requestId.length < 8) {
     issues.push({
       field: "requestId",
       code: "INVALID_REQUEST_ID",
-      message: "Doctor request reference is required.",
+      message: "Doctor request reference must be at least 8 characters when provided.",
     });
   }
 

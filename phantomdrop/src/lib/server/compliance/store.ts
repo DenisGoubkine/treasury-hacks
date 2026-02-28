@@ -96,6 +96,12 @@ export function getDoctorAttestationRecordsByDoctor(doctorWallet: string): Docto
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export function getDoctorAttestationRecordsByPatient(patientWallet: string): DoctorAttestationRecord[] {
+  return Array.from(getDoctorRecordMap().values())
+    .filter((record) => record.attestation.patientWallet === patientWallet)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
 function verifiedPatientKey(doctorWallet: string, patientWallet: string): string {
   return `${doctorWallet.toLowerCase()}::${patientWallet.toLowerCase()}`;
 }
@@ -112,6 +118,14 @@ export function getDoctorVerifiedPatient(
   patientWallet: string
 ): DoctorVerifiedPatientRecord | undefined {
   return getVerifiedPatientMap().get(verifiedPatientKey(doctorWallet, patientWallet));
+}
+
+export function getDoctorVerifiedPatientsByDoctor(
+  doctorWallet: string
+): DoctorVerifiedPatientRecord[] {
+  return Array.from(getVerifiedPatientMap().values())
+    .filter((record) => record.record.doctorWallet === doctorWallet)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function saveDoctorApprovalRequest(request: PatientDoctorApprovalRequestRecord): void {

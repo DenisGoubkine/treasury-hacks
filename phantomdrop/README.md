@@ -35,7 +35,7 @@ Wallet format note:
 
 ## End-to-End Verification Model
 
-1. Patient selects medication from catalog and sends wallet transaction request to doctor wallet (`requestRelayId` proof).
+1. Patient selects medication from catalog and sends a wallet-signed request to doctor wallet (`requestRelayId` proof id).
 2. Doctor validates legal identity in verified patient registry.
 3. Doctor files signed attestation for that specific request (wallet-linked eligibility).
 4. Patient receives approval code (`DOC-...`) and completes checkout.
@@ -46,7 +46,7 @@ Wallet format note:
 ### Patient -> Doctor Request
 
 - `POST /api/compliance/doctor/request`
-  - Requires patient wallet + legal identity fields + medication code + `requestRelayId`.
+  - Requires patient wallet + legal identity fields + medication code + `requestRelayId` proof id.
   - Requires patient wallet proof signature (Monad EOA signer + nonce + timestamp).
   - Creates request id (`req_...`) with verification status.
 
@@ -54,7 +54,7 @@ Wallet format note:
 
 - `POST /api/compliance/doctor/register-patient`
   - Auth: doctor wallet signature headers (`x-doctor-monad-wallet`, `x-doctor-request-ts`, `x-doctor-request-nonce`, `x-doctor-request-signature`)
-  - Requires on-chain registration signal relay id (`registryRelayId`) generated during doctor registration.
+  - Requires signed registration proof id (`registryRelayId`) generated during doctor registration.
   - Registers legal patient identity hash against patient wallet.
 
 - `POST /api/compliance/doctor/file`
@@ -71,6 +71,7 @@ Wallet format note:
 
 - `POST /api/compliance/doctor/confirm`
   - Verifies approval code is tied to connected patient wallet.
+  - Requires patient wallet signature proof (nonce + timestamp).
   - Returns purchase policy used in order checkout.
 
 ### Pharmacy Handoff
