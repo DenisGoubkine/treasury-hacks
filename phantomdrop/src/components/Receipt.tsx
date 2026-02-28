@@ -16,7 +16,9 @@ function hashString(str: string): string {
 }
 
 export default function Receipt({ order }: Props) {
-  const proofHash = hashString(`${order.id}${order.patientWallet}${order.amount}${order.paidAt}`);
+  const proofHash = hashString(
+    `${order.id}${order.patientWalletHash || order.patientWallet || "redacted"}${order.amount}${order.paidAt}`
+  );
 
   function download() {
     const content = [

@@ -5,7 +5,10 @@ import { getAddress } from "ethers";
 import Navbar from "@/components/Navbar";
 import CourierJobCard from "@/components/CourierJobCard";
 import DeliveryVerifier from "@/components/DeliveryVerifier";
-import { getAvailableOrders, getOrdersByCourier } from "@/lib/store";
+import {
+  getAvailableOrdersForCourier,
+  getOrdersByCourierForCourier,
+} from "@/lib/store";
 import {
   COURIER_PAYOUT_SYMBOL,
   MONAD_CHAIN_ID_HEX,
@@ -145,8 +148,8 @@ export default function CourierPage() {
   useEffect(() => {
     if (!courierWallet) return;
     const refresh = () => {
-      setAvailable(getAvailableOrders());
-      setMyJobs(getOrdersByCourier(courierWallet));
+      setAvailable(getAvailableOrdersForCourier());
+      setMyJobs(getOrdersByCourierForCourier(courierWallet));
     };
     refresh();
     const interval = setInterval(refresh, MONAD_FINALITY_MS);
@@ -247,8 +250,8 @@ export default function CourierPage() {
                       order={order}
                       courierWallet={courierWallet}
                       onAccepted={() => {
-                        setAvailable(getAvailableOrders());
-                        setMyJobs(getOrdersByCourier(courierWallet));
+                        setAvailable(getAvailableOrdersForCourier());
+                        setMyJobs(getOrdersByCourierForCourier(courierWallet));
                         setTab("mine");
                       }}
                     />
@@ -311,7 +314,7 @@ export default function CourierPage() {
                                 courierWallet={courierWallet}
                                 onSuccess={() => {
                                   setActiveVerify(null);
-                                  setMyJobs(getOrdersByCourier(courierWallet));
+                                  setMyJobs(getOrdersByCourierForCourier(courierWallet));
                                 }}
                               />
                             </div>

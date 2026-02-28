@@ -20,6 +20,7 @@ import {
 } from "@/lib/compliance/types";
 import { formatTokenAmount } from "@/lib/tokenFormat";
 import { generateOrderId, saveOrder } from "@/lib/store";
+import { hashWalletIdentity } from "@/lib/identity";
 import { Order } from "@/types";
 
 type Eip1193Provider = {
@@ -185,7 +186,7 @@ export default function OrderForm({ patientWallet }: Props) {
         medicationType: selectedApproval.medicationCategory,
         dropLocation: dropLocation.trim(),
         amount: DELIVERY_FEE.toString(),
-        patientWallet: normalized,
+        patientWalletHash: hashWalletIdentity(normalized),
         status: "funded",
         createdAt: Date.now(),
         fundedAt: Date.now(),

@@ -10,7 +10,8 @@ export interface Order {
   medicationType: string;
   dropLocation: string;
   amount: string; // stored as string (bigint serialization)
-  patientWallet: string;
+  patientWallet?: string; // legacy
+  patientWalletHash?: string; // preferred privacy-preserving identity key
   courierWallet?: string;
   status: OrderStatus;
   createdAt: number;

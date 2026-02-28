@@ -1,4 +1,5 @@
 import { Order } from "@/types";
+import { hashWalletIdentity } from "@/lib/identity";
 
 const STORAGE_KEY = "phantomdrop_orders";
 
@@ -28,8 +29,13 @@ export function getOrderById(id: string): Order | undefined {
 }
 
 export function getOrdersByPatient(wallet: string): Order[] {
-  const target = wallet.trim().toLowerCase();
-  return getOrders().filter((o) => o.patientWallet.trim().toLowerCase() === target);
+  const normalized = wallet.trim().toLowerCase();
+  const hashed = hashWalletIdentity(normalized);
+  return getOrders().filter((o) => {
+    const legacy = (o.patientWallet || "").trim().toLowerCase();
+    const identity = (o.patientWalletHash || "").trim().toLowerCase();
+    return legacy === normalized || identity === hashed.toLowerCase();
+  });
 }
 
 export function getOrdersByCourier(wallet: string): Order[] {
@@ -39,6 +45,23 @@ export function getOrdersByCourier(wallet: string): Order[] {
 
 export function getAvailableOrders(): Order[] {
   return getOrders().filter((o) => o.status === "funded");
+}
+
+function redactOrderForCourier(order: Order): Order {
+  return {
+    ...order,
+    patientWallet: undefined,
+    patientWalletHash: undefined,
+    compliancePatientToken: undefined,
+  };
+}
+
+export function getAvailableOrdersForCourier(): Order[] {
+  return getAvailableOrders().map(redactOrderForCourier);
+}
+
+export function getOrdersByCourierForCourier(wallet: string): Order[] {
+  return getOrdersByCourier(wallet).map(redactOrderForCourier);
 }
 
 export function generateOrderId(): string {
