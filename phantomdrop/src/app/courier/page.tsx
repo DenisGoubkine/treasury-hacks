@@ -341,7 +341,7 @@ export default function CourierPage() {
 
                       {order.status === "paid" && (
                         <div className="border border-green-200 bg-green-50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-green-700">
-                          Settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                          Unlink settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
                         </div>
                       )}
                     </div>

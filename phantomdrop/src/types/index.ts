@@ -27,6 +27,8 @@ export interface Order {
   payoutAmount?: string; // base units for payout token (ex: USDC 6 decimals)
   payoutSwapRate?: string; // input token to payout token swap rate
   payoutSwapReference?: string;
+  escrowDepositRelayId?: string;
+  escrowSendRelayId?: string;
   complianceAttestationId?: string;
   complianceApprovalCode?: string;
   compliancePatientToken?: string;

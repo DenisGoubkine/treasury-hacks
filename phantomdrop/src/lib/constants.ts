@@ -9,7 +9,8 @@ export const MONAD_TESTNET_EXPLORER_URL = "https://testnet.monadscan.com";
 export const MONAD_BLOCK_TIME_MS = 400;
 export const MONAD_FINALITY_MS = 800;
 
-// Platform escrow wallet — replace with your deployed Unlink address
+// Platform Unlink escrow account (unlink1... bech32m format).
+// Patient funds are privately sent here via useSend() — never exposed on-chain.
 export const PLATFORM_UNLINK_ADDRESS =
   process.env.NEXT_PUBLIC_PLATFORM_UNLINK_ADDRESS || "unlink1placeholder";
 
@@ -54,10 +55,10 @@ export const MEDICATION_CATEGORIES = [
 
 export const STATUS_LABELS: Record<string, string> = {
   pending:    "Order Placed",
-  funded:     "Escrow Funded",
+  funded:     "Unlink Escrow Funded",
   in_transit: "In Transit",
   delivered:  "Delivered",
-  paid:       "Courier Paid",
+  paid:       "Settled via Unlink",
 };
 
 export const STATUS_STEPS = [

@@ -51,7 +51,8 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
       const quote = quoteCourierPayoutUsdc(order.amount);
       const txHash = buildCourierSwapReference(orderId, courierWallet);
 
-      // Simulate swap/settlement round-trip for user feedback.
+      // Simulate Unlink private settlement (platform → courier via ZK transfer).
+      // In production, the platform backend would trigger useSend() from its Unlink account.
       await new Promise((resolve) => setTimeout(resolve, 900));
 
       updateOrderStatus(orderId, {
@@ -84,7 +85,7 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
       <div className="space-y-4 text-center py-8">
         <p className="text-xs font-bold uppercase tracking-widest text-[#00E100]">Delivery Confirmed</p>
         <p className="text-xs text-zinc-500 uppercase tracking-wide">
-          Payment settled in {order?.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}.
+          Settled via Unlink private transfer in {order?.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}.
         </p>
         {order?.payoutAmount ? (
           <p className="text-xs font-bold text-zinc-900">
@@ -120,7 +121,7 @@ export default function DeliveryVerifier({ orderId, courierWallet, onSuccess }: 
 
       {state === "swapping" && (
         <div className="text-center py-4 space-y-2">
-          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">Settling payout to USDC...</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">Settling via Unlink private transfer...</p>
         </div>
       )}
 
