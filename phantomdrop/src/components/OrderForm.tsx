@@ -81,6 +81,7 @@ async function waitForDepositFinalization(
 ): Promise<void> {
   const deadline = Date.now() + 240_000;
   let receiptConfirmed = false;
+  let receiptConfirmedAt = 0;
 
   while (Date.now() < deadline) {
     if (!receiptConfirmed && txHash) {
@@ -92,6 +93,9 @@ async function waitForDepositFinalization(
 
         if (receipt?.status === "0x1") {
           receiptConfirmed = true;
+          if (!receiptConfirmedAt) {
+            receiptConfirmedAt = Date.now();
+          }
         } else if (receipt?.status === "0x0") {
           throw new Error("MetaMask transaction reverted.");
         }
@@ -117,11 +121,27 @@ async function waitForDepositFinalization(
       // 404 can happen before indexer catches up.
     }
 
+    if (receiptConfirmed && Date.now() - receiptConfirmedAt > 15_000) {
+      // Indexer can lag even when tx is finalized on-chain.
+      // Proceed and let send/withdraw step retry on balance readiness.
+      return;
+    }
+
     await sleep(1500);
   }
 
   throw new Error(
     "Funding is still pending. Check MetaMask activity for completion, then retry in ~1 minute."
+  );
+}
+
+function isLikelyInsufficientBalanceError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("insufficient balance") ||
+    lower.includes("not enough balance") ||
+    lower.includes("insufficient funds")
   );
 }
 
@@ -413,31 +433,47 @@ export default function OrderForm({ patientWallet }: Props) {
       }
 
       if (isUnlinkRecipient) {
-        // Step 2A: Private send to platform Unlink escrow (not publicly linkable on-chain).
         setEscrowStep("sending");
-
-        const sendResult = await send([{
-          token: TOKEN_ADDRESS,
-          recipient,
-          amount: fee,
-        }]);
-
-        sendRelayId = sendResult.relayId;
-        await waitForRelayConfirmation(sendResult.relayId);
-        await refresh();
       } else {
-        // Step 2B: If env uses 0x recipient, fallback to withdrawal so ordering still works.
         setEscrowStep("withdrawing");
+      }
 
-        const withdrawResult = await withdraw([{
-          token: TOKEN_ADDRESS,
-          recipient,
-          amount: fee,
-        }]);
+      let transferError: unknown;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          if (isUnlinkRecipient) {
+            const sendResult = await send([{
+              token: TOKEN_ADDRESS,
+              recipient,
+              amount: fee,
+            }]);
+            sendRelayId = sendResult.relayId;
+            await waitForRelayConfirmation(sendResult.relayId);
+            await refresh();
+          } else {
+            const withdrawResult = await withdraw([{
+              token: TOKEN_ADDRESS,
+              recipient,
+              amount: fee,
+            }]);
+            sendRelayId = withdrawResult.relayId;
+            await waitForRelayConfirmation(withdrawResult.relayId);
+            await refresh();
+          }
+          transferError = undefined;
+          break;
+        } catch (err) {
+          transferError = err;
+          if (!isLikelyInsufficientBalanceError(err) || attempt === 7) {
+            throw err;
+          }
+          await sleep(2000);
+          await refresh();
+        }
+      }
 
-        sendRelayId = withdrawResult.relayId;
-        await waitForRelayConfirmation(withdrawResult.relayId);
-        await refresh();
+      if (transferError) {
+        throw transferError;
       }
 
       // Step 3: Create order

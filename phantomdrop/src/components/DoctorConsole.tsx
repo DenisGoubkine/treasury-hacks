@@ -32,23 +32,6 @@ function toInitialExpiryIso(): string {
 }
 
 const DOCTOR_PROFILE_STORAGE_KEY = "phantomdrop:doctor_profile:v1";
-const DOCTOR_PHARMACY_STORAGE_PREFIX = "phantomdrop:doctor_pharmacies:v1";
-const EVM_WALLET = /^0x[a-fA-F0-9]{40}$/;
-const UNLINK_WALLET = /^unlink1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/;
-
-interface DoctorLinkedPharmacyVisual {
-  id: string;
-  wallet: string;
-  name: string;
-  licenseId: string;
-  linkedAt: string;
-  encryptionStatus: "encrypted";
-}
-
-function isWalletLike(value: string): boolean {
-  const input = value.trim();
-  return EVM_WALLET.test(input) || UNLINK_WALLET.test(input);
-}
 
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
@@ -111,9 +94,6 @@ export default function DoctorConsole() {
   const [registryDob, setRegistryDob] = useState("");
   const [registryState, setRegistryState] = useState("");
   const [registryHealthCard, setRegistryHealthCard] = useState("");
-  const [pharmacyWallet, setPharmacyWallet] = useState("");
-  const [pharmacyName, setPharmacyName] = useState("");
-  const [pharmacyLicenseId, setPharmacyLicenseId] = useState("");
 
   const [patientWallet, setPatientWallet] = useState("");
   const [doctorName, setDoctorName] = useState("");
@@ -141,7 +121,6 @@ export default function DoctorConsole() {
   const [created, setCreated] = useState<DoctorFiledAttestation | null>(null);
   const [records, setRecords] = useState<DoctorFiledAttestation[]>([]);
   const [verifiedPatients, setVerifiedPatients] = useState<DoctorRegisterPatientRecord[]>([]);
-  const [linkedPharmacies, setLinkedPharmacies] = useState<DoctorLinkedPharmacyVisual[]>([]);
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
   const [editWalletValue, setEditWalletValue] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -183,28 +162,6 @@ export default function DoctorConsole() {
       })
     );
   }, [doctorName, doctorNpi, doctorDea]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !doctorWallet) return;
-    const storageKey = `${DOCTOR_PHARMACY_STORAGE_PREFIX}:${doctorWallet.toLowerCase()}`;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw) {
-        setLinkedPharmacies([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as DoctorLinkedPharmacyVisual[];
-      setLinkedPharmacies(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setLinkedPharmacies([]);
-    }
-  }, [doctorWallet]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !doctorWallet) return;
-    const storageKey = `${DOCTOR_PHARMACY_STORAGE_PREFIX}:${doctorWallet.toLowerCase()}`;
-    window.localStorage.setItem(storageKey, JSON.stringify(linkedPharmacies));
-  }, [doctorWallet, linkedPharmacies]);
 
   const connectDoctorWallet = useCallback(async () => {
     setError("");
@@ -491,49 +448,6 @@ export default function DoctorConsole() {
     }
   }
 
-  function handleLinkPharmacy(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    const normalizedWallet = pharmacyWallet.trim();
-    if (!isWalletLike(normalizedWallet)) {
-      setError("Pharmacy wallet must be a valid unlink1... or 0x... address.");
-      return;
-    }
-    if (pharmacyName.trim().length < 2) {
-      setError("Pharmacy name is required.");
-      return;
-    }
-    if (pharmacyLicenseId.trim().length < 3) {
-      setError("Pharmacy license ID is required.");
-      return;
-    }
-
-    const existing = linkedPharmacies.find(
-      (item) => item.wallet.toLowerCase() === normalizedWallet.toLowerCase()
-    );
-    if (existing) {
-      setError("This pharmacy wallet is already linked in your workspace.");
-      return;
-    }
-
-    setLinkedPharmacies((prev) => [
-      {
-        id: crypto.randomUUID(),
-        wallet: normalizedWallet,
-        name: pharmacyName.trim(),
-        licenseId: pharmacyLicenseId.trim().toUpperCase(),
-        linkedAt: new Date().toISOString(),
-        encryptionStatus: "encrypted",
-      },
-      ...prev,
-    ]);
-
-    setPharmacyWallet("");
-    setPharmacyName("");
-    setPharmacyLicenseId("");
-  }
-
   function applyVerifiedPatient(record: DoctorRegisterPatientRecord) {
     setRegistryPatientWallet(record.patientWallet);
     setPatientWallet(record.patientWallet);
@@ -632,7 +546,7 @@ export default function DoctorConsole() {
             Verified patients: <span className="font-bold text-zinc-900">{verifiedPatients.length}</span>
           </p>
           <p className="text-xs text-zinc-600">
-            Linked pharmacies: <span className="font-bold text-zinc-900">{linkedPharmacies.length}</span>
+            Pharmacy status: <span className="font-bold text-green-700">Linked</span>
           </p>
           <p className="text-xs text-zinc-600">
             Filed attestations: <span className="font-bold text-zinc-900">{records.length}</span>
@@ -906,59 +820,14 @@ export default function DoctorConsole() {
 
           <div className="border border-zinc-100 p-4 space-y-3">
             <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">
-              Linked Pharmacies
+              Pharmacy Link
             </p>
-            <p className="text-xs text-zinc-400">
-              Encrypted handoff registry for pharmacies linked to this doctor wallet.
+            <p className="text-xs text-zinc-500">
+              Your doctor workspace is automatically connected to pharmacy handoff.
             </p>
-            <form onSubmit={handleLinkPharmacy} className="space-y-2">
-              <input
-                type="text"
-                value={pharmacyName}
-                onChange={(e) => setPharmacyName(e.target.value)}
-                placeholder="Pharmacy legal name"
-                className="w-full bg-white border border-zinc-200 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
-                required
-              />
-              <input
-                type="text"
-                value={pharmacyLicenseId}
-                onChange={(e) => setPharmacyLicenseId(e.target.value)}
-                placeholder="License / accreditation ID"
-                className="w-full bg-white border border-zinc-200 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
-                required
-              />
-              <input
-                type="text"
-                value={pharmacyWallet}
-                onChange={(e) => setPharmacyWallet(e.target.value)}
-                placeholder="Pharmacy wallet (unlink1... or 0x...)"
-                className="w-full bg-white border border-zinc-200 px-3 py-2 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
-                required
-              />
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-zinc-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-zinc-700 transition-colors"
-              >
-                Link Pharmacy
-              </button>
-            </form>
-
-            <div className="space-y-2 max-h-56 overflow-y-auto">
-              {linkedPharmacies.length === 0 ? (
-                <p className="text-xs text-zinc-400">No linked pharmacies yet.</p>
-              ) : (
-                linkedPharmacies.map((item) => (
-                  <div key={item.id} className="border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs space-y-1">
-                    <p className="font-semibold text-zinc-900">{item.name}</p>
-                    <p className="text-zinc-500">License: {item.licenseId}</p>
-                    <p className="font-mono text-zinc-500 break-all">{item.wallet}</p>
-                    <p className="text-zinc-400 uppercase tracking-wide">
-                      {item.encryptionStatus} handoff · {new Date(item.linkedAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))
-              )}
+            <div className="border border-green-200 bg-green-50 px-3 py-2.5 text-xs">
+              <p className="font-bold uppercase tracking-widest text-green-700">Active</p>
+              <p className="font-mono text-zinc-600 break-all mt-1">{doctorWallet}</p>
             </div>
           </div>
 
