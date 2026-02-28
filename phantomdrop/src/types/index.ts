@@ -3,7 +3,8 @@ export type OrderStatus =
   | "funded"
   | "in_transit"
   | "delivered"
-  | "paid";
+  | "paid"
+  | "disputed";
 
 export interface Order {
   id: string;
@@ -35,4 +36,8 @@ export interface Order {
   complianceDoctorToken?: string;
   complianceSignature?: string;
   complianceExpiresAt?: string;
+  disputeReason?: string;
+  disputeOpenedAt?: number;
+  disputeResolvedAt?: number;
+  disputeResolution?: "none" | "refunded" | "dismissed";
 }

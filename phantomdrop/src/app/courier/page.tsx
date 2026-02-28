@@ -301,7 +301,9 @@ export default function CourierPage() {
                         </div>
                         <span
                           className={`text-[10px] px-2 py-0.5 uppercase tracking-widest font-bold border ${
-                            order.status === "paid"
+                            order.status === "disputed"
+                              ? "border-red-300 text-red-600 bg-red-50"
+                              : order.status === "paid"
                               ? "border-[#00E100]/40 text-[#00E100] bg-green-50"
                               : order.status === "delivered"
                               ? "border-green-200 text-green-600 bg-green-50"
@@ -342,6 +344,19 @@ export default function CourierPage() {
                       {order.status === "paid" && (
                         <div className="border border-green-200 bg-green-50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-green-700">
                           Unlink settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                        </div>
+                      )}
+
+                      {order.status === "disputed" && (
+                        <div className="border border-red-200 bg-red-50 px-4 py-3 space-y-1.5">
+                          <p className="text-xs font-bold uppercase tracking-widest text-red-700">Patient dispute open</p>
+                          {order.disputeReason && (
+                            <p className="text-xs text-zinc-600">{order.disputeReason}</p>
+                          )}
+                          <p className="text-xs text-zinc-400">
+                            Payout held pending resolution. Opened{" "}
+                            {order.disputeOpenedAt ? new Date(order.disputeOpenedAt).toLocaleString() : "—"}
+                          </p>
                         </div>
                       )}
                     </div>

@@ -2,12 +2,14 @@
 
 import { Order } from "@/types";
 import EscrowStatus from "./EscrowStatus";
+import DisputeForm from "./DisputeForm";
 import { useState } from "react";
-import { TOKEN_SYMBOL } from "@/lib/constants";
+import { DISPUTE_WINDOW_MS, TOKEN_SYMBOL } from "@/lib/constants";
 import { formatTokenAmount } from "@/lib/tokenFormat";
 
 interface Props {
   order: Order;
+  onDisputeSubmitted?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,16 +18,29 @@ const STATUS_COLORS: Record<string, string> = {
   in_transit: "border border-amber-200 text-amber-600 bg-amber-50",
   delivered:  "border border-green-200 text-green-600 bg-green-50",
   paid:       "border border-[#00E100]/40 text-[#00E100] bg-green-50",
+  disputed:   "border border-red-300 text-red-600 bg-red-50",
 };
 
-export default function OrderCard({ order }: Props) {
+export default function OrderCard({ order, onDisputeSubmitted }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [showDispute, setShowDispute] = useState(false);
   const fee = formatTokenAmount(order.amount, 6);
   const date = new Date(order.createdAt).toLocaleDateString();
 
+  const canDispute =
+    (order.status === "delivered" || order.status === "paid") &&
+    order.deliveredAt != null &&
+    Date.now() - order.deliveredAt < DISPUTE_WINDOW_MS;
+
+  const disputeWindowDays = order.deliveredAt
+    ? Math.max(0, Math.ceil((order.deliveredAt + DISPUTE_WINDOW_MS - Date.now()) / (24 * 60 * 60 * 1000)))
+    : 0;
+
   return (
     <div
-      className="border border-zinc-100 overflow-hidden cursor-pointer hover:border-zinc-300 transition-colors"
+      className={`border overflow-hidden cursor-pointer hover:border-zinc-300 transition-colors ${
+        order.status === "disputed" ? "border-red-200" : "border-zinc-100"
+      }`}
       onClick={() => setExpanded((x) => !x)}
     >
       {/* Header */}
@@ -89,6 +104,22 @@ export default function OrderCard({ order }: Props) {
             )}
           </div>
 
+          {/* Dispute banner */}
+          {order.status === "disputed" && (
+            <div className="border border-red-200 bg-red-50 px-4 py-3 space-y-1.5">
+              <p className="text-xs font-bold uppercase tracking-widest text-red-700">Dispute open</p>
+              <p className="text-xs text-zinc-600">{order.disputeReason}</p>
+              <p className="text-xs text-zinc-400">
+                Opened {order.disputeOpenedAt ? new Date(order.disputeOpenedAt).toLocaleString() : "—"}
+              </p>
+              {order.disputeResolution && order.disputeResolution !== "none" && (
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-700">
+                  Resolution: {order.disputeResolution}
+                </p>
+              )}
+            </div>
+          )}
+
           {order.status === "paid" && (
             <a
               href={`/receipts`}
@@ -97,6 +128,30 @@ export default function OrderCard({ order }: Props) {
             >
               View ZK Receipt →
             </a>
+          )}
+
+          {/* Report issue button */}
+          {canDispute && !showDispute && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowDispute(true); }}
+              className="w-full py-2.5 border border-red-200 text-xs text-red-600 uppercase tracking-widest hover:border-red-400 hover:bg-red-50 transition-colors"
+            >
+              Report Issue — {disputeWindowDays}d left to dispute
+            </button>
+          )}
+
+          {/* Inline dispute form */}
+          {showDispute && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <DisputeForm
+                orderId={order.id}
+                onSuccess={() => {
+                  setShowDispute(false);
+                  onDisputeSubmitted?.();
+                }}
+              />
+            </div>
           )}
         </div>
       )}
