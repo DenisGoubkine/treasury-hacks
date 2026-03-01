@@ -351,6 +351,11 @@ export function updateAttestationPatientWallet(
   return count;
 }
 
+export function reloadStoreFromDisk(): void {
+  global.__phantomdrop_compliance_store_loaded = false;
+  hydrateStoreIfNeeded();
+}
+
 export function resetComplianceStore(): void {
   global.__phantomdrop_compliance_records = new Map();
   global.__phantomdrop_doctor_attestations = new Map();

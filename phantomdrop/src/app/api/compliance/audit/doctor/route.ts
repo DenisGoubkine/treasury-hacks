@@ -6,6 +6,7 @@ import {
   getDoctorAttestationRecordsByDoctor,
   getDoctorOrderAuditLogsByDoctor,
   getDoctorVerifiedPatientsByDoctor,
+  reloadStoreFromDisk,
 } from "@/lib/server/compliance/store";
 
 export async function GET(request: NextRequest) {
@@ -33,6 +34,9 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Force re-read from persistence file so audit always has fresh data
+  reloadStoreFromDisk();
 
   const prescriptions = getDoctorAttestationRecordsByDoctor(doctorWallet).map((entry) => entry.attestation);
   const orders = getDoctorOrderAuditLogsByDoctor(doctorWallet).map((entry) => entry.order);
