@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "reset:prod-data": "curl -sS -X POST \"${PHANTOMDROP_BASE_URL:-https://phantom-drop.vercel.app}/api/compliance/admin/reset\" -H \"x-compliance-admin-key: ${COMPLIANCE_ADMIN_API_KEY:-admin}\""
   },
   "dependencies": {
     "@unlink-xyz/react": "^0.1.8",

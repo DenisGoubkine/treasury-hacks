@@ -73,18 +73,16 @@ function isHttp404Error(error: unknown): boolean {
   return status === 404 || message.includes("HTTP 404") || message.includes("404");
 }
 
-async function waitForDepositFinalization(
+async function waitForDepositSubmission(
   provider: Eip1193Provider,
   relayId: string,
   txHash: string | undefined,
   getTxStatus: (txId: string) => Promise<{ state: string; error?: string }>
 ): Promise<void> {
-  const deadline = Date.now() + 240_000;
-  let receiptConfirmed = false;
-  let receiptConfirmedAt = 0;
+  const deadline = Date.now() + 30_000;
 
   while (Date.now() < deadline) {
-    if (!receiptConfirmed && txHash) {
+    if (txHash) {
       try {
         const receipt = (await provider.request({
           method: "eth_getTransactionReceipt",
@@ -92,15 +90,13 @@ async function waitForDepositFinalization(
         })) as { status?: string } | null;
 
         if (receipt?.status === "0x1") {
-          receiptConfirmed = true;
-          if (!receiptConfirmedAt) {
-            receiptConfirmedAt = Date.now();
-          }
-        } else if (receipt?.status === "0x0") {
+          return;
+        }
+        if (receipt?.status === "0x0") {
           throw new Error("MetaMask transaction reverted.");
         }
       } catch {
-        // Ignore transient RPC errors and continue polling relay state.
+        // Ignore transient RPC errors and keep checking other signals.
       }
     }
 
@@ -117,22 +113,16 @@ async function waitForDepositFinalization(
         throw new Error(relayStatus.error || `Funding relay ${relayStatus.state}`);
       }
     } catch (err) {
-      if (!isHttp404Error(err)) throw err;
-      // 404 can happen before indexer catches up.
-    }
-
-    if (receiptConfirmed && Date.now() - receiptConfirmedAt > 15_000) {
-      // Indexer can lag even when tx is finalized on-chain.
-      // Proceed and let send/withdraw step retry on balance readiness.
-      return;
+      if (!isHttp404Error(err)) {
+        throw err;
+      }
+      // 404 can happen before indexer catches up; continue.
     }
 
     await sleep(1500);
   }
 
-  throw new Error(
-    "Funding is still pending. Check MetaMask activity for completion, then retry in ~1 minute."
-  );
+  // Do not block order flow forever on slow relay/indexing. Next transfer step has retries.
 }
 
 function isLikelyInsufficientBalanceError(error: unknown): boolean {
@@ -191,7 +181,7 @@ interface AddressAutocompleteResponse {
 export default function OrderForm({ patientWallet }: Props) {
   const router = useRouter();
 
-  const { activeAccount, refresh, getTxStatus, createWallet, createAccount } = useUnlink();
+  const { activeAccount, ready, refresh, getTxStatus, createWallet, createAccount } = useUnlink();
   const { deposit, isPending: isDepositing } = useDeposit();
   const { send, isPending: isSending } = useSend();
   const { withdraw, isPending: isWithdrawing } = useWithdraw();
@@ -346,6 +336,11 @@ export default function OrderForm({ patientWallet }: Props) {
   async function placeEscrowOrder(e: React.FormEvent) {
     e.preventDefault();
 
+    if (!ready) {
+      setError("Secure wallet is still initializing. Please wait a few seconds and retry.");
+      return;
+    }
+
     if (!selectedApproval) {
       setError("No doctor-approved medication available for this wallet.");
       return;
@@ -428,7 +423,7 @@ export default function OrderForm({ patientWallet }: Props) {
           ],
         })) as string;
 
-        await waitForDepositFinalization(provider, relay.relayId, txHash, getTxStatus);
+        await waitForDepositSubmission(provider, relay.relayId, txHash, getTxStatus);
         await refresh();
       }
 
@@ -535,7 +530,10 @@ export default function OrderForm({ patientWallet }: Props) {
       setRemoteAddressSuggestions([]);
       router.push("/dashboard");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not place order";
+      const raw = err instanceof Error ? err.message : "Could not place order";
+      const msg = raw.toLowerCase().includes("sdk not initialized")
+        ? "Secure wallet is still initializing. Please retry in a few seconds."
+        : raw;
       setError(msg);
     } finally {
       setIsPlacingOrder(false);
@@ -566,6 +564,11 @@ export default function OrderForm({ patientWallet }: Props) {
         <p className="text-xs text-zinc-400 leading-relaxed">
           Only medications already approved by your doctor for this wallet are shown. Select one, add a drop-off location, and place your order (~{finalitySeconds}s finality on Monad).
         </p>
+        {!ready ? (
+          <p className="text-xs text-amber-700 uppercase tracking-widest animate-pulse">
+            Initializing secure wallet...
+          </p>
+        ) : null}
       </div>
 
       <div className="border border-zinc-100 space-y-4 p-5">
@@ -679,10 +682,10 @@ export default function OrderForm({ patientWallet }: Props) {
 
       <button
         type="submit"
-        disabled={isPlacingOrder || isDepositing || isSending || isWithdrawing || approvals.length === 0 || !selectedApproval}
+        disabled={!ready || isPlacingOrder || isDepositing || isSending || isWithdrawing || approvals.length === 0 || !selectedApproval}
         className="w-full py-3.5 bg-[#00E100] text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {buttonLabel}
+        {!ready ? "Initializing secure wallet..." : buttonLabel}
       </button>
 
       {escrowStep && (

@@ -32,6 +32,11 @@ function toInitialExpiryIso(): string {
 }
 
 const DOCTOR_PROFILE_STORAGE_KEY = "phantomdrop:doctor_profile:v1";
+const DOCTOR_VERIFIED_PATIENTS_STORAGE_PREFIX = "phantomdrop:doctor_verified_patients:v1";
+
+function getVerifiedPatientsStorageKey(wallet: string): string {
+  return `${DOCTOR_VERIFIED_PATIENTS_STORAGE_PREFIX}:${wallet.trim().toLowerCase()}`;
+}
 
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
@@ -301,8 +306,53 @@ export default function DoctorConsole() {
     }
 
     setRecords(body.records || []);
-    setVerifiedPatients(body.verifiedPatients || []);
+    const serverPatients = body.verifiedPatients || [];
+    if (serverPatients.length > 0) {
+      setVerifiedPatients(serverPatients);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          getVerifiedPatientsStorageKey(doctorWallet),
+          JSON.stringify(serverPatients)
+        );
+      }
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const cachedRaw = window.localStorage.getItem(getVerifiedPatientsStorageKey(doctorWallet));
+        const cached = cachedRaw ? (JSON.parse(cachedRaw) as DoctorRegisterPatientRecord[]) : [];
+        setVerifiedPatients(Array.isArray(cached) ? cached : []);
+      } catch {
+        setVerifiedPatients([]);
+      }
+      return;
+    }
+
+    setVerifiedPatients([]);
   }, [doctorWallet]);
+
+  useEffect(() => {
+    if (!doctorWallet || typeof window === "undefined") return;
+    try {
+      const cachedRaw = window.localStorage.getItem(getVerifiedPatientsStorageKey(doctorWallet));
+      if (!cachedRaw) return;
+      const cached = JSON.parse(cachedRaw) as DoctorRegisterPatientRecord[];
+      if (Array.isArray(cached) && cached.length > 0) {
+        setVerifiedPatients(cached);
+      }
+    } catch {
+      // Ignore malformed cache.
+    }
+  }, [doctorWallet]);
+
+  useEffect(() => {
+    if (!doctorWallet || typeof window === "undefined") return;
+    window.localStorage.setItem(
+      getVerifiedPatientsStorageKey(doctorWallet),
+      JSON.stringify(verifiedPatients)
+    );
+  }, [doctorWallet, verifiedPatients]);
 
   const refreshWorkspace = useCallback(async () => {
     if (!doctorWallet) return;
