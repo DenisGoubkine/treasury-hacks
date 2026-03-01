@@ -36,6 +36,9 @@ export interface Order {
   complianceDoctorToken?: string;
   complianceSignature?: string;
   complianceExpiresAt?: string;
+  pickupPharmacyName?: string;
+  pickupPharmacyAddress?: string;
+  doctorPharmacyConfirmationUrl?: string;
   totalUsdc?: string;
   pharmacyCostUsdc?: string;
   courierFeeUsdc?: string;

@@ -112,9 +112,9 @@ export default function Home() {
       <section className="max-w-6xl mx-auto px-6 py-16">
         <div className="grid grid-cols-3 divide-x divide-zinc-100">
           {[
-            { value: "58%", label: "of Americans avoided filling a prescription due to privacy concerns" },
-            { value: "0", label: "personal data collected. Ever." },
-            { value: "800ms", label: "to finality on Monad — fastest escrow settlement anywhere" },
+            { value: "34.1M", label: "people enrolled in Medicare Advantage in 2025 (KFF analysis of CMS enrollment)" },
+            { value: "73%", label: "of U.S. adults say they have little or no control over company use of their data (Pew, 2023)" },
+            { value: "72%", label: "of U.S. adults want stronger regulation of how companies use personal data (Pew, 2023)" },
           ].map(({ value, label }) => (
             <div key={value} className="px-8 first:pl-0 last:pr-0 space-y-3">
               <p className="text-4xl md:text-5xl font-bold text-zinc-900">{value}</p>

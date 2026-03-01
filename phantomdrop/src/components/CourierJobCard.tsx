@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Order } from "@/types";
 import { updateOrderStatus } from "@/lib/store";
-import { COURIER_PAYOUT_SYMBOL } from "@/lib/constants";
+import {
+  COURIER_PAYOUT_SYMBOL,
+  PICKUP_PHARMACY_ADDRESS,
+  PICKUP_PHARMACY_NAME,
+} from "@/lib/constants";
 import { computeOrderBreakdown } from "@/lib/pricing";
 
 interface Props {
@@ -13,6 +18,10 @@ interface Props {
 
 export default function CourierJobCard({ order, courierWallet, onAccepted }: Props) {
   const courierFee = order.courierFeeUsdc || computeOrderBreakdown().courierFeeDisplay;
+  const pickupPharmacyName = order.pickupPharmacyName || PICKUP_PHARMACY_NAME;
+  const pickupPharmacyAddress = order.pickupPharmacyAddress || PICKUP_PHARMACY_ADDRESS;
+  const confirmationUrl = order.doctorPharmacyConfirmationUrl ||
+    `/compliance/confirmation/${encodeURIComponent(order.complianceAttestationId || order.id)}`;
 
   function handleAccept() {
     if (!courierWallet) return;
@@ -60,6 +69,21 @@ export default function CourierJobCard({ order, courierWallet, onAccepted }: Pro
 
       <div className="border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500 uppercase tracking-wide">
         Patient identity not disclosed. Payment releases automatically when AI confirms delivery.
+      </div>
+
+      <div className="border border-[#00E100]/30 bg-green-50 px-4 py-3 space-y-2">
+        <p className="text-xs font-bold uppercase tracking-widest text-green-700">Courier Notification</p>
+        <p className="text-xs text-zinc-600">
+          Pickup at: <span className="font-semibold">{pickupPharmacyName}</span>
+        </p>
+        <p className="text-xs text-zinc-500">{pickupPharmacyAddress}</p>
+        <p className="text-xs text-zinc-600">Delivery address: {order.dropLocation}</p>
+        <Link
+          href={confirmationUrl}
+          className="inline-block text-xs uppercase tracking-widest underline text-zinc-600 hover:text-zinc-900"
+        >
+          Doctor ↔ Pharmacy confirmation link
+        </Link>
       </div>
 
       <button

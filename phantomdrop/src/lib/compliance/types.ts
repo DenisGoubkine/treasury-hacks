@@ -47,6 +47,16 @@ export interface ComplianceAttestResponse {
 
 export interface DoctorFileAttestationRequest {
   requestId?: string;
+  verifiedPatientProof?: {
+    registryId: string;
+    doctorWallet: string;
+    patientWallet: string;
+    registryRelayId: string;
+    patientToken: string;
+    legalIdentityHash: string;
+    verifiedAt: string;
+    signature: string;
+  };
   doctorWallet: string;
   doctorNpi: string;
   doctorDea?: string;

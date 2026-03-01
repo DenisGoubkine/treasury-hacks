@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAddress } from "ethers";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CourierJobCard from "@/components/CourierJobCard";
 import DeliveryVerifier from "@/components/DeliveryVerifier";
@@ -11,6 +12,8 @@ import {
 } from "@/lib/store";
 import {
   COURIER_PAYOUT_SYMBOL,
+  PICKUP_PHARMACY_ADDRESS,
+  PICKUP_PHARMACY_NAME,
   MONAD_CHAIN_ID_HEX,
   MONAD_FINALITY_MS,
   MONAD_TESTNET_EXPLORER_URL,
@@ -279,7 +282,13 @@ export default function CourierPage() {
                     <p className="text-xs uppercase tracking-widest text-zinc-300">No accepted deliveries yet</p>
                   </div>
                 ) : (
-                  myJobs.map((order) => (
+                  myJobs.map((order) => {
+                    const pickupPharmacyName = order.pickupPharmacyName || PICKUP_PHARMACY_NAME;
+                    const pickupPharmacyAddress = order.pickupPharmacyAddress || PICKUP_PHARMACY_ADDRESS;
+                    const confirmationUrl = order.doctorPharmacyConfirmationUrl ||
+                      `/compliance/confirmation/${encodeURIComponent(order.complianceAttestationId || order.id)}`;
+
+                    return (
                     <div
                       key={order.id}
                       className="border border-zinc-100 p-5 space-y-4"
@@ -311,6 +320,23 @@ export default function CourierPage() {
                         </span>
                       </div>
 
+                      {(order.status === "in_transit" || order.status === "delivered" || order.status === "paid") && (
+                        <div className="border border-[#00E100]/30 bg-green-50 px-4 py-3 space-y-2">
+                          <p className="text-xs font-bold uppercase tracking-widest text-green-700">Courier Notification</p>
+                          <p className="text-xs text-zinc-600">
+                            Pickup at: <span className="font-semibold">{pickupPharmacyName}</span>
+                          </p>
+                          <p className="text-xs text-zinc-500">{pickupPharmacyAddress}</p>
+                          <p className="text-xs text-zinc-600">Delivery address: {order.dropLocation}</p>
+                          <Link
+                            href={confirmationUrl}
+                            className="inline-block text-xs uppercase tracking-widest underline text-zinc-600 hover:text-zinc-900"
+                          >
+                            Doctor ↔ Pharmacy confirmation link
+                          </Link>
+                        </div>
+                      )}
+
                       {order.status === "in_transit" && (
                         <>
                           {activeVerify === order.id ? (
@@ -339,8 +365,16 @@ export default function CourierPage() {
                       )}
 
                       {order.status === "paid" && (
-                        <div className="border border-green-200 bg-green-50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-green-700">
-                          Unlink settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                        <div className="border border-green-200 bg-green-50 px-4 py-3 space-y-2">
+                          <p className="text-xs font-bold uppercase tracking-widest text-green-700">
+                            Unlink settlement confirmed in {order.payoutTokenSymbol || COURIER_PAYOUT_SYMBOL}
+                          </p>
+                          <Link
+                            href="/receipts"
+                            className="inline-block text-xs uppercase tracking-widest text-zinc-600 underline hover:text-zinc-900"
+                          >
+                            Open payment statement
+                          </Link>
                         </div>
                       )}
 
@@ -357,7 +391,8 @@ export default function CourierPage() {
                         </div>
                       )}
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}

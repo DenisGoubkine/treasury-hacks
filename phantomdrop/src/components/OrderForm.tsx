@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 import { useDeposit, useSend, useUnlink, useUnlinkBalance, useWithdraw } from "@unlink-xyz/react";
 
 import {
+  DOCTOR_PHARMACY_CONFIRMATION_BASE_PATH,
   DELIVERY_FEE,
   MONAD_CHAIN_ID_HEX,
   MONAD_FINALITY_MS,
   MONAD_TESTNET_EXPLORER_URL,
   MONAD_TESTNET_RPC_URL,
+  PICKUP_PHARMACY_ADDRESS,
+  PICKUP_PHARMACY_NAME,
   PLATFORM_UNLINK_ADDRESS,
   TOKEN_ADDRESS,
   TOKEN_IS_NATIVE,
@@ -65,6 +68,59 @@ async function ensureMonadTestnet(provider: Eip1193Provider) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function clearUnlinkBrowserState(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const keysToDelete: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key) continue;
+    const normalized = key.toLowerCase();
+    if (normalized.includes("unlink") || normalized.startsWith("phantomdrop:address_history")) {
+      keysToDelete.push(key);
+    }
+  }
+  for (const key of keysToDelete) {
+    window.localStorage.removeItem(key);
+  }
+
+  if ("indexedDB" in window) {
+    const dbNames = new Set<string>(["unlink-wallet"]);
+    const dbListApi = indexedDB as IDBFactory & {
+      databases?: () => Promise<Array<{ name?: string }>>;
+    };
+    if (dbListApi.databases) {
+      try {
+        const dbs = await dbListApi.databases();
+        for (const db of dbs) {
+          const name = db?.name || "";
+          if (name && name.toLowerCase().startsWith("unlink")) {
+            dbNames.add(name);
+          }
+        }
+      } catch {
+        // Ignore browser API compatibility issues.
+      }
+    }
+
+    await Promise.all(
+      Array.from(dbNames).map(
+        (name) =>
+          new Promise<void>((resolve) => {
+            try {
+              const req = indexedDB.deleteDatabase(name);
+              req.onsuccess = () => resolve();
+              req.onerror = () => resolve();
+              req.onblocked = () => resolve();
+            } catch {
+              resolve();
+            }
+          })
+      )
+    );
+  }
 }
 
 function isHttp404Error(error: unknown): boolean {
@@ -181,7 +237,7 @@ interface AddressAutocompleteResponse {
 export default function OrderForm({ patientWallet }: Props) {
   const router = useRouter();
 
-  const { activeAccount, ready, refresh, getTxStatus, createWallet, createAccount } = useUnlink();
+  const { activeAccount, ready, status, syncError, error: sdkError, refresh, getTxStatus, createWallet, createAccount } = useUnlink();
   const { deposit, isPending: isDepositing } = useDeposit();
   const { send, isPending: isSending } = useSend();
   const { withdraw, isPending: isWithdrawing } = useWithdraw();
@@ -191,12 +247,15 @@ export default function OrderForm({ patientWallet }: Props) {
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [remoteAddressSuggestions, setRemoteAddressSuggestions] = useState<string[]>([]);
   const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
+  const [isAddressMenuOpen, setIsAddressMenuOpen] = useState(false);
   const [selectedApprovalCode, setSelectedApprovalCode] = useState("");
   const [approvals, setApprovals] = useState<PatientApprovedMedication[]>([]);
 
   const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [escrowStep, setEscrowStep] = useState<EscrowStep>(null);
+  const [showInitHelp, setShowInitHelp] = useState(false);
+  const [isResettingWallet, setIsResettingWallet] = useState(false);
   const [error, setError] = useState("");
 
   const breakdown = useMemo(() => computeOrderBreakdown(), []);
@@ -218,6 +277,20 @@ export default function OrderForm({ patientWallet }: Props) {
     }
     return Array.from(deduped.values()).slice(0, 12);
   }, [addressSuggestions, remoteAddressSuggestions]);
+  const visibleAddressSuggestions = useMemo(() => {
+    const query = dropLocation.trim().toLowerCase();
+    if (!query) {
+      return combinedAddressSuggestions.slice(0, 5);
+    }
+    return combinedAddressSuggestions
+      .filter((address) => address.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [combinedAddressSuggestions, dropLocation]);
+  const hasExactAddressSuggestion = useMemo(() => {
+    const normalized = dropLocation.trim().toLowerCase();
+    if (!normalized) return false;
+    return combinedAddressSuggestions.some((address) => address.toLowerCase() === normalized);
+  }, [combinedAddressSuggestions, dropLocation]);
 
   // 404-tolerant relay confirmation (Unlink indexer may lag behind chain)
   async function waitForRelayConfirmation(relayId: string): Promise<void> {
@@ -291,6 +364,10 @@ export default function OrderForm({ patientWallet }: Props) {
 
   useEffect(() => {
     const query = dropLocation.trim();
+    if (!isAddressMenuOpen) {
+      setIsFetchingAddressSuggestions(false);
+      return;
+    }
     if (query.length < 3) {
       setRemoteAddressSuggestions([]);
       setIsFetchingAddressSuggestions(false);
@@ -325,13 +402,37 @@ export default function OrderForm({ patientWallet }: Props) {
       } finally {
         setIsFetchingAddressSuggestions(false);
       }
-    }, 280);
+    }, 160);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [dropLocation]);
+  }, [dropLocation, isAddressMenuOpen]);
+
+  useEffect(() => {
+    if (ready) {
+      setShowInitHelp(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setShowInitHelp(true);
+    }, 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [ready]);
+
+  async function handleFixWalletInit() {
+    setError("");
+    setIsResettingWallet(true);
+    try {
+      await clearUnlinkBrowserState();
+      window.location.reload();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not reset secure wallet cache.";
+      setError(msg);
+      setIsResettingWallet(false);
+    }
+  }
 
   async function placeEscrowOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -475,6 +576,10 @@ export default function OrderForm({ patientWallet }: Props) {
       setEscrowStep("creating");
       const createdAtMs = Date.now();
       const createdAtIso = new Date(createdAtMs).toISOString();
+      const normalizedConfirmationBase = DOCTOR_PHARMACY_CONFIRMATION_BASE_PATH.replace(/\/+$/, "");
+      const doctorPharmacyConfirmationUrl = `${normalizedConfirmationBase}/${encodeURIComponent(
+        selectedApproval.attestationId
+      )}`;
 
       const order: Order = {
         id: generateOrderId(),
@@ -493,6 +598,9 @@ export default function OrderForm({ patientWallet }: Props) {
         complianceDoctorToken: selectedApproval.doctorToken,
         complianceSignature: selectedApproval.signature,
         complianceExpiresAt: selectedApproval.validUntilIso,
+        pickupPharmacyName: PICKUP_PHARMACY_NAME,
+        pickupPharmacyAddress: PICKUP_PHARMACY_ADDRESS,
+        doctorPharmacyConfirmationUrl,
         totalUsdc: breakdown.totalDisplay,
         pharmacyCostUsdc: breakdown.pharmacyCostDisplay,
         courierFeeUsdc: breakdown.courierFeeDisplay,
@@ -557,6 +665,12 @@ export default function OrderForm({ patientWallet }: Props) {
     ? "Securing funds..."
     : `Place order — $${breakdown.totalDisplay} USDC`;
 
+  function handleSelectAddress(address: string) {
+    setDropLocation(address);
+    setIsAddressMenuOpen(false);
+    setRemoteAddressSuggestions([]);
+  }
+
   return (
     <form onSubmit={placeEscrowOrder} className="space-y-6">
       <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 space-y-1">
@@ -565,9 +679,31 @@ export default function OrderForm({ patientWallet }: Props) {
           Only medications already approved by your doctor for this wallet are shown. Select one, add a drop-off location, and place your order (~{finalitySeconds}s finality on Monad).
         </p>
         {!ready ? (
-          <p className="text-xs text-amber-700 uppercase tracking-widest animate-pulse">
-            Initializing secure wallet...
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-amber-700 uppercase tracking-widest animate-pulse">
+              Initializing secure wallet...
+            </p>
+            {syncError || sdkError?.message || status ? (
+              <p className="text-xs text-amber-700">
+                {syncError || sdkError?.message || status}
+              </p>
+            ) : null}
+            {showInitHelp ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleFixWalletInit()}
+                  disabled={isResettingWallet}
+                  className="text-xs px-3 py-1.5 border border-amber-300 text-amber-700 hover:border-amber-700 disabled:opacity-50 uppercase tracking-widest transition-colors"
+                >
+                  {isResettingWallet ? "Fixing..." : "Fix Wallet Init"}
+                </button>
+                <a href="/clearcache" className="text-xs text-zinc-500 underline">
+                  Full reset page
+                </a>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -617,44 +753,47 @@ export default function OrderForm({ patientWallet }: Props) {
 
       <div className="space-y-2">
         <label className="block text-xs font-bold uppercase tracking-widest text-zinc-900">Delivery location</label>
-        {combinedAddressSuggestions.length > 0 ? (
-          <p className="text-xs text-zinc-400">
-            Autofill from your recent addresses is enabled.
-          </p>
-        ) : null}
+        <p className="text-xs text-zinc-400">Start typing to autofill from known addresses.</p>
         {isFetchingAddressSuggestions ? (
           <p className="text-xs text-zinc-400 uppercase tracking-widest animate-pulse">
-            Searching verified addresses...
+            Searching addresses...
           </p>
         ) : null}
         <input
           type="text"
           value={dropLocation}
-          onChange={(e) => setDropLocation(e.target.value)}
+          onChange={(e) => {
+            setDropLocation(e.target.value);
+            setIsAddressMenuOpen(true);
+          }}
+          onFocus={() => setIsAddressMenuOpen(true)}
+          onBlur={() => {
+            window.setTimeout(() => setIsAddressMenuOpen(false), 120);
+          }}
           placeholder="123 Main St, Apt 4B"
-          list="drop-location-suggestions"
           autoComplete="street-address"
           className="w-full bg-white border border-zinc-200 px-4 py-3 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors"
           required
         />
-        <datalist id="drop-location-suggestions">
-          {combinedAddressSuggestions.map((address) => (
-            <option key={address} value={address} />
-          ))}
-        </datalist>
-        {combinedAddressSuggestions.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {combinedAddressSuggestions.slice(0, 3).map((address) => (
+        {isAddressMenuOpen && !hasExactAddressSuggestion && visibleAddressSuggestions.length > 0 ? (
+          <div className="border border-zinc-200 bg-white divide-y divide-zinc-100 max-h-56 overflow-auto">
+            {visibleAddressSuggestions.map((address) => (
               <button
                 key={address}
                 type="button"
-                onClick={() => setDropLocation(address)}
-                className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={() => handleSelectAddress(address)}
+                className="w-full text-left px-3 py-2.5 text-xs text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
               >
-                {address.length > 36 ? `${address.slice(0, 36)}...` : address}
+                {address}
               </button>
             ))}
           </div>
+        ) : null}
+        {!isAddressMenuOpen && hasExactAddressSuggestion ? (
+          <p className="text-xs text-green-700 uppercase tracking-widest">Address selected</p>
         ) : null}
       </div>
 

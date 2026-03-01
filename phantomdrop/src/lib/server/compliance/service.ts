@@ -128,6 +128,91 @@ function legalIdentityHash(input: {
   return createHash("sha256").update(normalizeLegalIdentity(input)).digest("hex");
 }
 
+function normalizeWallet(wallet: string): string {
+  return wallet.trim().toLowerCase();
+}
+
+function validateVerifiedPatientProof(
+  input: DoctorFileAttestationRequest,
+  secret: string
+): { ok: true; record: DoctorRegisterPatientRecord } | { ok: false; issues: ReturnType<typeof validateDoctorFileAttestationInput> } {
+  const proof = input.verifiedPatientProof;
+  const issues: ReturnType<typeof validateDoctorFileAttestationInput> = [];
+  if (!proof) {
+    issues.push({
+      field: "verifiedPatientProof",
+      code: "MISSING_VERIFIED_PATIENT_PROOF",
+      message: "Verified patient proof is missing.",
+    });
+    return { ok: false, issues };
+  }
+
+  if (!proof.registryId.trim().startsWith("reg_")) {
+    issues.push({
+      field: "verifiedPatientProof",
+      code: "INVALID_REGISTRY_ID",
+      message: "Verified patient proof is missing a valid registry id.",
+    });
+  }
+
+  if (normalizeWallet(proof.doctorWallet) !== normalizeWallet(input.doctorWallet)) {
+    issues.push({
+      field: "verifiedPatientProof",
+      code: "PROOF_DOCTOR_MISMATCH",
+      message: "Verified patient proof doctor wallet does not match current doctor wallet.",
+    });
+  }
+
+  if (normalizeWallet(proof.patientWallet) !== normalizeWallet(input.patientWallet)) {
+    issues.push({
+      field: "verifiedPatientProof",
+      code: "PROOF_PATIENT_MISMATCH",
+      message: "Verified patient proof patient wallet does not match the selected patient wallet.",
+    });
+  }
+
+  const expectedSignature = signPayload(
+    {
+      registryId: proof.registryId,
+      doctorWallet: proof.doctorWallet,
+      patientWallet: proof.patientWallet,
+      registryRelayId: proof.registryRelayId,
+      patientToken: proof.patientToken,
+      legalIdentityHash: proof.legalIdentityHash,
+      verifiedAt: proof.verifiedAt,
+    },
+    secret
+  );
+
+  if (proof.signature !== expectedSignature) {
+    issues.push({
+      field: "verifiedPatientProof",
+      code: "INVALID_VERIFIED_PATIENT_SIGNATURE",
+      message: "Verified patient proof signature could not be validated.",
+    });
+  }
+
+  if (issues.length > 0) {
+    return { ok: false, issues };
+  }
+
+  return {
+    ok: true,
+    record: {
+      registryId: proof.registryId.trim(),
+      doctorWallet: input.doctorWallet,
+      patientWallet: input.patientWallet,
+      registryRelayId: proof.registryRelayId.trim(),
+      patientToken: proof.patientToken.trim(),
+      legalIdentityHash: proof.legalIdentityHash.trim(),
+      verifiedAt: proof.verifiedAt,
+      signature: proof.signature.trim(),
+      doctorName: undefined,
+      patientLegalName: undefined,
+    },
+  };
+}
+
 function buildChainAnchor(seed: string, secret: string) {
   const anchoredAt = new Date().toISOString();
   const anchorHash = createHash("sha256").update(`${seed}|${secret}`).digest("hex");
@@ -308,6 +393,7 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
   issues: ReturnType<typeof validateDoctorFileAttestationInput>;
 } {
   const issues = validateDoctorFileAttestationInput(input);
+  const config = getComplianceConfig();
 
   const inputRequestId = input.requestId?.trim() || "";
   const requestRecord = inputRequestId ? getDoctorApprovalRequest(inputRequestId) : undefined;
@@ -349,8 +435,18 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
       }
     }
   } else {
-    const registry = getDoctorVerifiedPatient(input.doctorWallet, input.patientWallet);
-    if (!registry) {
+    let registry = getDoctorVerifiedPatient(input.doctorWallet, input.patientWallet);
+    if (!registry && input.verifiedPatientProof) {
+      const proofValidation = validateVerifiedPatientProof(input, config.attestationSecret);
+      if (!proofValidation.ok) {
+        issues.push(...proofValidation.issues);
+      } else {
+        // Restore verified patient link on server when valid signed proof is supplied.
+        saveDoctorVerifiedPatient(proofValidation.record);
+        registry = getDoctorVerifiedPatient(input.doctorWallet, input.patientWallet);
+      }
+    }
+    if (!registry && !input.verifiedPatientProof) {
       issues.push({
         field: "requestId",
         code: "MISSING_REQUEST_OR_VERIFIED_LINK",
@@ -366,8 +462,6 @@ export function fileDoctorAttestation(input: DoctorFileAttestationRequest): {
 
   const resolvedRequestId =
     inputRequestId || `manual_${randomUUID().replace(/-/g, "").slice(0, 18)}`;
-
-  const config = getComplianceConfig();
   const issuedAt = new Date().toISOString();
   const attestationId = `att_${randomUUID().replace(/-/g, "")}`;
   const approvalCode = buildApprovalCode();

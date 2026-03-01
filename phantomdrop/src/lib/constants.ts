@@ -9,6 +9,17 @@ export const MONAD_TESTNET_EXPLORER_URL = "https://testnet.monadscan.com";
 export const MONAD_BLOCK_TIME_MS = 400;
 export const MONAD_FINALITY_MS = 800;
 
+// Pin Unlink endpoints so SDK init does not depend on config fetch at runtime.
+export const UNLINK_GATEWAY_URL =
+  process.env.NEXT_PUBLIC_UNLINK_GATEWAY_URL || "https://api.unlink.xyz";
+export const UNLINK_POOL_ADDRESS =
+  process.env.NEXT_PUBLIC_UNLINK_POOL_ADDRESS ||
+  "0x0813da0a10328e5ed617d37e514ac2f6fa49a254";
+export const UNLINK_ARTIFACT_BASE_URL =
+  process.env.NEXT_PUBLIC_UNLINK_ARTIFACT_BASE_URL || "https://artifacts.unlink.xyz";
+export const UNLINK_ARTIFACT_VERSION =
+  process.env.NEXT_PUBLIC_UNLINK_ARTIFACT_VERSION || "v6bad364c";
+
 // Platform Unlink escrow account (unlink1... bech32m format).
 // Patient funds are privately sent here via useSend() — never exposed on-chain.
 export const PLATFORM_UNLINK_ADDRESS =
@@ -35,6 +46,12 @@ export const COURIER_PAYOUT_SYMBOL =
 export const COURIER_PAYOUT_DECIMALS = Number(
   process.env.NEXT_PUBLIC_COURIER_PAYOUT_DECIMALS || "6"
 );
+export const PICKUP_PHARMACY_NAME =
+  process.env.NEXT_PUBLIC_PICKUP_PHARMACY_NAME || "PhantomDrop Partner Pharmacy";
+export const PICKUP_PHARMACY_ADDRESS =
+  process.env.NEXT_PUBLIC_PICKUP_PHARMACY_ADDRESS || "125 Testnet Ave, New York, NY 10001";
+export const DOCTOR_PHARMACY_CONFIRMATION_BASE_PATH =
+  process.env.NEXT_PUBLIC_DOCTOR_PHARMACY_CONFIRMATION_BASE_PATH || "/compliance/confirmation";
 
 // Delivery cost in base units for TOKEN_ADDRESS.
 export const DELIVERY_FEE = BigInt(process.env.NEXT_PUBLIC_DELIVERY_FEE || "5000000");
@@ -75,4 +92,3 @@ export const STATUS_STEPS = [
   "delivered",
   "paid",
 ] as const;
-

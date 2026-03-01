@@ -38,6 +38,10 @@ function getVerifiedPatientsStorageKey(wallet: string): string {
   return `${DOCTOR_VERIFIED_PATIENTS_STORAGE_PREFIX}:${wallet.trim().toLowerCase()}`;
 }
 
+function normalizeWallet(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
   on?: (event: string, listener: (...args: unknown[]) => void) => void;
@@ -445,6 +449,12 @@ export default function DoctorConsole() {
         throw new Error("Patient wallet is required. Use Step 1 or pick from verified patients.");
       }
 
+      const selectedVerifiedPatient = verifiedPatients.find(
+        (record) =>
+          normalizeWallet(record.doctorWallet) === normalizeWallet(doctorWallet) &&
+          normalizeWallet(record.patientWallet) === normalizeWallet(patientWallet)
+      );
+
       const authHeaders = await buildDoctorAuthHeaders(
         "file_attestation",
         `manual|${patientWallet.trim()}|${medicationCode}`
@@ -461,6 +471,18 @@ export default function DoctorConsole() {
           doctorNpi: doctorNpi.trim(),
           doctorDea: doctorDea.trim() || undefined,
           patientWallet: patientWallet.trim(),
+          verifiedPatientProof: selectedVerifiedPatient
+            ? {
+                registryId: selectedVerifiedPatient.registryId,
+                doctorWallet: selectedVerifiedPatient.doctorWallet,
+                patientWallet: selectedVerifiedPatient.patientWallet,
+                registryRelayId: selectedVerifiedPatient.registryRelayId,
+                patientToken: selectedVerifiedPatient.patientToken,
+                legalIdentityHash: selectedVerifiedPatient.legalIdentityHash,
+                verifiedAt: selectedVerifiedPatient.verifiedAt,
+                signature: selectedVerifiedPatient.signature,
+              }
+            : undefined,
           medicationCode: selectedMedication?.code || medicationCode.trim(),
           medicationCategory:
             medicationDisplayLabel.trim() ||

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import WalletConnect from "./WalletConnect";
 
 const links = [
@@ -16,6 +17,11 @@ const links = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   return (
     <nav className="border-b border-zinc-100 bg-white sticky top-0 z-50">
@@ -27,19 +33,24 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center">
-          {links.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`px-4 h-12 flex items-center text-xs uppercase tracking-widest transition-colors border-l border-zinc-100 ${
-                pathname === href
-                  ? "text-[#00E100]"
-                  : "text-zinc-400 hover:text-zinc-900"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
+          {links.map(({ href, label }) => {
+            // Avoid hydration mismatch when pathname differs between SSR and initial client render.
+            // Highlight active link only after mount.
+            const isActive = isHydrated && pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`px-4 h-12 flex items-center text-xs uppercase tracking-widest transition-colors border-l border-zinc-100 ${
+                  isActive
+                    ? "text-[#00E100]"
+                    : "text-zinc-400 hover:text-zinc-900"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </div>
 
         <WalletConnect compact />

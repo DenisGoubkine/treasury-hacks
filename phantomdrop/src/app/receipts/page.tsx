@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAddress } from "ethers";
+import { useUnlink } from "@unlink-xyz/react";
 
 import Navbar from "@/components/Navbar";
 import Receipt from "@/components/Receipt";
 import { getOrders } from "@/lib/store";
 import { hashWalletIdentity } from "@/lib/identity";
 import { Order } from "@/types";
+
+type ReceiptRole = "patient" | "courier";
+
+interface ReceiptEntry {
+  order: Order;
+  role: ReceiptRole;
+}
 
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
@@ -24,10 +32,11 @@ function getEthereumProvider(): Eip1193Provider {
 }
 
 export default function ReceiptsPage() {
+  const { activeAccount } = useUnlink();
   const [wallet, setWallet] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
-  const [receipts, setReceipts] = useState<Order[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptEntry[]>([]);
 
   const connectWallet = useCallback(async () => {
     setError("");
@@ -94,19 +103,38 @@ export default function ReceiptsPage() {
   }, []);
 
   useEffect(() => {
-    if (!wallet) return;
-    const normalized = wallet.toLowerCase();
-    const walletHash = hashWalletIdentity(normalized).toLowerCase();
-    const paid = getOrders().filter((o) => {
-      if (o.status !== "paid") return false;
-      const patientMatch =
-        (o.patientWallet || "").toLowerCase() === normalized ||
-        (o.patientWalletHash || "").toLowerCase() === walletHash;
-      const courierMatch = (o.courierWallet || "").toLowerCase() === normalized;
-      return patientMatch || courierMatch;
-    });
-    setReceipts(paid);
-  }, [wallet]);
+    if (!wallet && !activeAccount?.address) return;
+
+    const identityCandidates = new Set<string>();
+    if (wallet) identityCandidates.add(wallet.toLowerCase());
+    if (activeAccount?.address) identityCandidates.add(activeAccount.address.toLowerCase());
+
+    const candidateHashes = new Set<string>();
+    for (const candidate of identityCandidates) {
+      candidateHashes.add(hashWalletIdentity(candidate).toLowerCase());
+    }
+
+    const paidEntries = getOrders()
+      .filter((o) => o.status === "paid")
+      .flatMap((o) => {
+        const patientWallet = (o.patientWallet || "").toLowerCase();
+        const patientHash = (o.patientWalletHash || "").toLowerCase();
+        const courierWallet = (o.courierWallet || "").toLowerCase();
+
+        const patientMatch =
+          identityCandidates.has(patientWallet) ||
+          (patientHash.length > 0 && candidateHashes.has(patientHash));
+        const courierMatch = identityCandidates.has(courierWallet);
+
+        const matches: ReceiptEntry[] = [];
+        if (patientMatch) matches.push({ order: o, role: "patient" });
+        if (courierMatch) matches.push({ order: o, role: "courier" });
+        return matches;
+      })
+      .sort((a, b) => (b.order.paidAt || b.order.createdAt) - (a.order.paidAt || a.order.createdAt));
+
+    setReceipts(paidEntries);
+  }, [wallet, activeAccount?.address]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -115,21 +143,21 @@ export default function ReceiptsPage() {
       {/* Page header */}
       <div className="border-b border-zinc-100">
         <div className="max-w-6xl mx-auto px-6 py-10">
-          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Patient portal</p>
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Document portal</p>
           <h1 className="text-2xl font-bold uppercase tracking-tight text-zinc-900">ZK Receipts</h1>
           <p className="text-xs text-zinc-400 mt-1 uppercase tracking-wide">
-            Proof of payment without revealing parties or amounts on-chain.
+            Patient insurance receipts and courier tax statements from private Unlink settlement.
           </p>
         </div>
       </div>
 
       <main className="max-w-6xl mx-auto px-6 py-12 space-y-6">
-        {!wallet ? (
+        {!wallet && !activeAccount?.address ? (
           <div className="border border-zinc-100 p-8 max-w-md space-y-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-900 mb-2">Connect your wallet</p>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Connect MetaMask to view your ZK receipts for completed transactions.
+                Connect MetaMask or initialize your Unlink wallet to view completed transaction documents.
               </p>
             </div>
             <button
@@ -152,6 +180,17 @@ export default function ReceiptsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="border border-[#00E100]/30 bg-green-50 px-5 py-4 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-green-700">Unlink Settlement Flow</p>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                MetaMask signs network transactions, Unlink executes private escrow transfers, and PhantomDrop issues
+                role-specific records from that settlement trail.
+              </p>
+              <p className="text-xs text-zinc-500">
+                Patient wallets get compliance/insurance receipts. Courier wallets get PhantomDrop payment statements
+                for tax documentation.
+              </p>
+            </div>
             <div className="border border-zinc-100 bg-zinc-50 px-5 py-4 space-y-1">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-900">Privacy Note</p>
               <p className="text-xs text-zinc-400 leading-relaxed">
@@ -159,8 +198,8 @@ export default function ReceiptsPage() {
                 medication details on-chain. Download and store securely.
               </p>
             </div>
-            {receipts.map((order) => (
-              <Receipt key={order.id} order={order} />
+            {receipts.map((entry) => (
+              <Receipt key={`${entry.order.id}-${entry.role}`} order={entry.order} role={entry.role} />
             ))}
           </div>
         )}
