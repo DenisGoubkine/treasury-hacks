@@ -20,9 +20,12 @@ export default function Home() {
             <span className="text-[#00E100]">No trace.</span>
           </h1>
 
-          <p className="text-xs text-zinc-500 max-w-md mb-12 leading-relaxed uppercase tracking-wide">
-            Doctor-filed purchase approvals. Private stablecoin escrow. Rapid Monad settlement. Patients use a simple approval code — prescription decisions stay on the doctor side.
-          </p>
+          <div className="text-xs text-zinc-500 max-w-lg mb-12 space-y-1 uppercase tracking-wide">
+            <p>Patients buy medication without exposing their identity on-chain.</p>
+            <p>Doctors approve prescriptions through encrypted attestations.</p>
+            <p>Couriers deliver sealed packages and get paid automatically.</p>
+            <p>Built on Monad. Escrowed with Unlink. Zero data collected.</p>
+          </div>
 
           <div className="flex flex-wrap items-stretch">
             <Link
