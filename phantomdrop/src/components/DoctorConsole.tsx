@@ -310,30 +310,14 @@ export default function DoctorConsole() {
     }
 
     setRecords(body.records || []);
-    const serverPatients = body.verifiedPatients || [];
-    if (serverPatients.length > 0) {
-      setVerifiedPatients(serverPatients);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          getVerifiedPatientsStorageKey(doctorWallet),
-          JSON.stringify(serverPatients)
-        );
-      }
-      return;
-    }
-
+    const serverPatients = Array.isArray(body.verifiedPatients) ? body.verifiedPatients : [];
+    setVerifiedPatients(serverPatients);
     if (typeof window !== "undefined") {
-      try {
-        const cachedRaw = window.localStorage.getItem(getVerifiedPatientsStorageKey(doctorWallet));
-        const cached = cachedRaw ? (JSON.parse(cachedRaw) as DoctorRegisterPatientRecord[]) : [];
-        setVerifiedPatients(Array.isArray(cached) ? cached : []);
-      } catch {
-        setVerifiedPatients([]);
-      }
-      return;
+      window.localStorage.setItem(
+        getVerifiedPatientsStorageKey(doctorWallet),
+        JSON.stringify(serverPatients)
+      );
     }
-
-    setVerifiedPatients([]);
   }, [doctorWallet]);
 
   useEffect(() => {
